@@ -9,8 +9,10 @@ import (
 	"strings"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	"github.com/nostosx/agentx/agent"
+	"github.com/nostosx/agentx/loop"
 	"github.com/nostosx/agentx/model"
 	"github.com/nostosx/agentx/model/modeltest"
 )
@@ -254,6 +256,51 @@ func TestA2ASendMessageAndApprovals(t *testing.T) {
 	}
 	if r := f.rpc("ListTasks", map[string]any{"status": stateInputRequired}); decodeResult[struct{ TotalSize int }](t, r).TotalSize != 0 {
 		t.Error("status filter")
+	}
+}
+
+func TestA2ACompletionReleasesContextBeforeNotification(t *testing.T) {
+	s := &Server{busy: map[string]bool{"context": true}}
+	updates := make(chan a2aStreamResponse, 1)
+	task := &taskRecord{
+		contextID: "context", state: stateWorking, running: true,
+		idle: make(chan struct{}), subs: map[chan a2aStreamResponse]bool{updates: true},
+	}
+	// Hold the session reservation lock to stop release. Neither synchronous
+	// callers nor stream subscribers may observe completion while it is held.
+	s.mu.Lock()
+	done := make(chan struct{})
+	started := make(chan struct{})
+	go func() {
+		defer close(done)
+		// An empty segment finishes as failed without taking the session lock
+		// to observe an event first.
+		s.a2aRun(task, func(func(*loop.Event, error) bool) { close(started) })
+	}()
+	<-started
+	var early bool
+	select {
+	case <-task.idle:
+		early = true
+	case <-updates:
+		early = true
+	case <-time.After(25 * time.Millisecond):
+	}
+	s.mu.Unlock()
+	<-done
+	if early {
+		t.Fatal("completion was published before the context reservation was released")
+	}
+	if s.isBusy(task.contextID) {
+		t.Fatal("completed task still reserves its context")
+	}
+	if update := <-updates; update.StatusUpdate == nil || update.StatusUpdate.Status.State != stateFailed {
+		t.Fatalf("completion update = %+v", update)
+	}
+	select {
+	case <-task.idle:
+	default:
+		t.Fatal("completion did not wake the synchronous caller")
 	}
 }
 

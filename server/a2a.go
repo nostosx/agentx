@@ -656,7 +656,6 @@ func (s *Server) a2aContinue(ctx context.Context, cancel context.CancelFunc, r *
 // a2aRun runs a segment of a task in the background and records its
 // progress. The task's session is released when the run has ended.
 func (s *Server) a2aRun(t *taskRecord, seq iter.Seq2[*loop.Event, error]) {
-	defer s.release(t.contextID)
 	var res *loop.Result
 	var runErr error
 	for ev, err := range seq {
@@ -689,7 +688,7 @@ func (s *Server) a2aRun(t *taskRecord, seq iter.Seq2[*loop.Event, error]) {
 			res = ev.Result
 		}
 	}
-	t.finish(res, runErr)
+	s.a2aFinish(t, res, runErr)
 }
 
 // agentMessage returns a message of the agent with text and data parts.
@@ -706,10 +705,14 @@ func (t *taskRecord) agentMessage(text string, data any) *a2aMessage {
 	return m
 }
 
-// finish records the end of a task's running segment.
-func (t *taskRecord) finish(res *loop.Result, runErr error) {
+// a2aFinish records the end of a task's running segment.
+func (s *Server) a2aFinish(t *taskRecord, res *loop.Result, runErr error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	// Release the session before publishing completion or waking a caller that
+	// may immediately start another run. Keep the task locked through the update
+	// so a continuation cannot observe the previous segment's state.
+	s.release(t.contextID)
 	t.interrupt = nil
 	state, text := stateFailed, ""
 	var data any
