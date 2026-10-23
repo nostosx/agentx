@@ -1,0 +1,17 @@
+/coverage.txt
+*.test
+*.out
+/dist/
+.skills/
+.agentx/
+.DS_Store
+.idea/
+.vscode/
+.claude/scheduled_tasks.lock
+/bin/
+go.work
+go.work.sum
+.env
+.env.*
+!.env.example
+*.prof
