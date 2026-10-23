@@ -158,7 +158,16 @@ func TestIgnoreLinkedWorktreeMatchesGit(t *testing.T) {
 		"dir/secret.txt": "x",
 		"dir/keep.go":    "x",
 	})
-	if !strings.HasPrefix(strings.TrimSpace(gitCmd(t, wt, "rev-parse", "--git-common-dir")), main) {
+	common := strings.TrimSpace(gitCmd(t, wt, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+	commonInfo, err := os.Stat(common)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mainInfo, err := os.Stat(filepath.Join(main, ".git"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(commonInfo, mainInfo) {
 		t.Fatal("work tree does not share the main repository")
 	}
 	for _, dir := range []string{wt, filepath.Join(wt, "dir")} {

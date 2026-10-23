@@ -207,6 +207,9 @@ func TestSandboxSpec(t *testing.T) {
 }
 
 func TestSeatbeltProfile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Seatbelt profiles use macOS paths, including literal backslashes")
+	}
 	t.Parallel()
 	sp := &sandboxSpec{
 		writable: []writableRoot{

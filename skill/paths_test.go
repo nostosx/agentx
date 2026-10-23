@@ -22,7 +22,7 @@ func pathSkill(t *testing.T, paths ...string) skill.Skill {
 // The patterns follow https://code.claude.com/docs/en/memory#path-specific-rules.
 func TestApplies(t *testing.T) {
 	t.Parallel()
-	root := filepath.Join(string(filepath.Separator), "repo")
+	root := t.TempDir()
 	for _, tt := range []struct {
 		name  string
 		paths []string
@@ -37,7 +37,7 @@ func TestApplies(t *testing.T) {
 		{"braces miss", []string{"src/**/*.{ts,tsx}"}, "src/c/x.js", false},
 		{"dot slash", []string{"./lib/*.go"}, "lib/a.go", true},
 		{"absolute file", []string{"src/**"}, filepath.Join(root, "src", "a.go"), true},
-		{"outside root", []string{"**"}, filepath.Join(string(filepath.Separator), "other", "a.go"), false},
+		{"outside root", []string{"**"}, filepath.Join(filepath.Dir(root), "other", "a.go"), false},
 		{"invalid pattern matches nothing", []string{"photos [2024/**", "*.jpg"}, "photos [2024/a.jpg", false},
 		{"escaped bracket", []string{`photos \[2024/**`}, "photos [2024/a.jpg", true},
 	} {
@@ -95,7 +95,7 @@ func TestFilesOf(t *testing.T) {
 func TestMatchTool(t *testing.T) {
 	t.Parallel()
 	home, _ := os.UserHomeDir()
-	root := filepath.Join(string(filepath.Separator), "repo")
+	root := t.TempDir()
 	bash := func(cmd string) *model.ToolCall {
 		b, _ := json.Marshal(map[string]string{"command": cmd})
 		return &model.ToolCall{Name: "bash", Arguments: b}
