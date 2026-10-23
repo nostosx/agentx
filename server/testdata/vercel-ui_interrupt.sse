@@ -1,0 +1,36 @@
+data: {"type":"start","messageId":"msg_run_1"}
+
+data: {"type":"start-step"}
+
+data: {"type":"reasoning-start","id":"reasoning-1-0"}
+
+data: {"type":"reasoning-delta","id":"reasoning-1-0","delta":"Think"}
+
+data: {"type":"reasoning-delta","id":"reasoning-1-0","delta":"ing"}
+
+data: {"type":"text-start","id":"text-1-1"}
+
+data: {"type":"text-delta","id":"text-1-1","delta":"Deploy"}
+
+data: {"type":"text-delta","id":"text-1-1","delta":"ing"}
+
+data: {"type":"tool-input-start","toolCallId":"call_1","toolName":"deploy"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_1","inputTextDelta":"{\"env\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_1","inputTextDelta":":\"prod\"}"}
+
+data: {"type":"reasoning-end","id":"reasoning-1-0"}
+
+data: {"type":"text-end","id":"text-1-1"}
+
+data: {"type":"tool-input-available","toolCallId":"call_1","toolName":"deploy","input":{"env":"prod"}}
+
+data: {"type":"tool-approval-request","toolCallId":"call_1","approvalId":"call_1","reason":"Deploys need approval."}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish","finishReason":"tool-calls","messageMetadata":{"agentx":{"run_id":"run_1","status":"interrupted","reason":"awaiting tool approval","usage":{"input_tokens":10,"output_tokens":5}}}}
+
+data: [DONE]
+

@@ -1,0 +1,11 @@
+{"type":"run_start","run_id":"run_1","session_id":"s1","agent":"chat"}
+{"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"chat","turn":1}
+{"type":"message","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"message":{"role":"assistant","parts":[{"type":"tool_call","tool_call":{"id":"call_0","name":"research","arguments":{"task":"look"}}}]}}
+{"type":"run_start","run_id":"run_sub","session_id":"s1","agent":"research","depth":1,"parent_call_id":"call_0"}
+{"type":"turn_start","run_id":"run_sub","session_id":"s1","agent":"research","turn":1,"depth":1,"parent_call_id":"call_0"}
+{"type":"message","run_id":"run_sub","session_id":"s1","agent":"research","turn":1,"message":{"role":"assistant","parts":[{"type":"text","text":"Found it."}]},"depth":1,"parent_call_id":"call_0"}
+{"type":"run_end","run_id":"run_sub","session_id":"s1","agent":"research","turn":1,"result":{"run_id":"run_sub","status":"completed","output":"Found it.","usage":{"input_tokens":0,"output_tokens":0},"turns":1},"depth":1,"parent_call_id":"call_0"}
+{"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_result":{"call_id":"call_0","name":"research","content":"Found it."}}
+{"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"chat","turn":2}
+{"type":"message","run_id":"run_1","session_id":"s1","agent":"chat","turn":2,"message":{"role":"assistant","parts":[{"type":"text","text":"Here it is."}]}}
+{"type":"run_end","run_id":"run_1","session_id":"s1","agent":"chat","turn":2,"result":{"run_id":"run_1","status":"completed","output":"Here it is.","usage":{"input_tokens":0,"output_tokens":0},"turns":2}}

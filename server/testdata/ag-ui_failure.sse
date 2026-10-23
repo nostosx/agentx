@@ -1,0 +1,14 @@
+data: {"type":"RUN_STARTED","threadId":"thread_1","runId":"agui_run_1","protocolVersion":"1.0"}
+
+data: {"type":"STEP_STARTED","stepName":"turn 1"}
+
+data: {"type":"TEXT_MESSAGE_START","messageId":"run_1-1-0","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"run_1-1-0","delta":"Partial"}
+
+data: {"type":"TEXT_MESSAGE_END","messageId":"run_1-1-0"}
+
+data: {"type":"STEP_FINISHED","stepName":"turn 1"}
+
+data: {"type":"RUN_ERROR","message":"provider unavailable","code":"failed"}
+

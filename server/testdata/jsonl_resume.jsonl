@@ -1,0 +1,8 @@
+{"type":"run_start","run_id":"run_1","session_id":"s1","agent":"chat","turn":1}
+{"type":"tool_call","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_call":{"id":"call_1","name":"deploy","arguments":{"env":"prod"}}}
+{"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_call":{"id":"call_1","name":"deploy","arguments":{"env":"prod"}},"tool_result":{"call_id":"call_1","name":"deploy","content":"deployed to prod"}}
+{"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_result":{"call_id":"call_2","name":"deploy","content":"The user denied this tool call.","is_error":true}}
+{"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_result":{"call_id":"call_3","name":"deploy","content":"timeout","is_error":true}}
+{"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"chat","turn":2}
+{"type":"message","run_id":"run_1","session_id":"s1","agent":"chat","turn":2,"message":{"role":"assistant","parts":[{"type":"reasoning","text":"Done thinking"},{"type":"text","text":"Deployed."}]}}
+{"type":"run_end","run_id":"run_1","session_id":"s1","agent":"chat","turn":2,"result":{"run_id":"run_1","status":"completed","finish_reason":"stop","output":"Deployed.","usage":{"input_tokens":20,"output_tokens":7,"cache_read_tokens":4,"reasoning_tokens":2},"turns":2}}

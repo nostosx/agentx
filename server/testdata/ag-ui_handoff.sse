@@ -1,0 +1,58 @@
+data: {"type":"RUN_STARTED","threadId":"thread_1","runId":"agui_run_1","protocolVersion":"1.0"}
+
+data: {"type":"STEP_STARTED","stepName":"turn 1"}
+
+data: {"type":"TEXT_MESSAGE_START","messageId":"run_1-1-0","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"run_1-1-0","delta":"Transferring."}
+
+data: {"type":"TEXT_MESSAGE_END","messageId":"run_1-1-0"}
+
+data: {"type":"TOOL_CALL_START","toolCallId":"call_h","toolCallName":"transfer_to_billing"}
+
+data: {"type":"TOOL_CALL_ARGS","delta":"{}","toolCallId":"call_h"}
+
+data: {"type":"TOOL_CALL_END","toolCallId":"call_h"}
+
+data: {"type":"TOOL_CALL_RESULT","messageId":"result-call_h","role":"tool","toolCallId":"call_h","content":"Transferred to billing."}
+
+data: {"type":"CUSTOM","name":"handoff","value":{"from":"chat","to":"billing","tool":"transfer_to_billing","call_id":"call_h"}}
+
+data: {"type":"STEP_FINISHED","stepName":"turn 1"}
+
+data: {"type":"STEP_STARTED","stepName":"turn 2"}
+
+data: {"type":"TOOL_CALL_START","toolCallId":"call_s","toolCallName":"screenshot"}
+
+data: {"type":"TOOL_CALL_ARGS","delta":"{}","toolCallId":"call_s"}
+
+data: {"type":"TOOL_CALL_END","toolCallId":"call_s"}
+
+data: {"type":"TOOL_CALL_RESULT","messageId":"result-call_s","role":"tool","toolCallId":"call_s","content":"screen"}
+
+data: {"type":"STEP_FINISHED","stepName":"turn 2"}
+
+data: {"type":"STEP_STARTED","stepName":"turn 3"}
+
+data: {"type":"TEXT_MESSAGE_START","messageId":"run_1-3-0","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"run_1-3-0","delta":"{bad"}
+
+data: {"type":"TEXT_MESSAGE_END","messageId":"run_1-3-0"}
+
+data: {"type":"CUSTOM","name":"output_retry","value":{"output":"{bad","problems":["invalid JSON"],"attempt":1,"retries":1}}
+
+data: {"type":"STEP_FINISHED","stepName":"turn 3"}
+
+data: {"type":"STEP_STARTED","stepName":"turn 4"}
+
+data: {"type":"TEXT_MESSAGE_START","messageId":"run_1-4-0","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"run_1-4-0","delta":"{\"card\":\"4242\"}"}
+
+data: {"type":"TEXT_MESSAGE_END","messageId":"run_1-4-0"}
+
+data: {"type":"STEP_FINISHED","stepName":"turn 4"}
+
+data: {"type":"RUN_ERROR","message":"guardrail pii tripped: card number","code":"blocked"}
+

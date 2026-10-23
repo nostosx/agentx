@@ -1,0 +1,32 @@
+id: 1
+event: run_start
+data: {"type":"run_start","run_id":"run_1","session_id":"s1","agent":"chat","turn":1}
+
+id: 2
+event: tool_call
+data: {"type":"tool_call","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_call":{"id":"call_1","name":"deploy","arguments":{"env":"prod"}}}
+
+id: 3
+event: tool_result
+data: {"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_call":{"id":"call_1","name":"deploy","arguments":{"env":"prod"}},"tool_result":{"call_id":"call_1","name":"deploy","content":"deployed to prod"}}
+
+id: 4
+event: tool_result
+data: {"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_result":{"call_id":"call_2","name":"deploy","content":"The user denied this tool call.","is_error":true}}
+
+id: 5
+event: tool_result
+data: {"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_result":{"call_id":"call_3","name":"deploy","content":"timeout","is_error":true}}
+
+id: 6
+event: turn_start
+data: {"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"chat","turn":2}
+
+id: 7
+event: message
+data: {"type":"message","run_id":"run_1","session_id":"s1","agent":"chat","turn":2,"message":{"role":"assistant","parts":[{"type":"reasoning","text":"Done thinking"},{"type":"text","text":"Deployed."}]}}
+
+id: 8
+event: run_end
+data: {"type":"run_end","run_id":"run_1","session_id":"s1","agent":"chat","turn":2,"result":{"run_id":"run_1","status":"completed","finish_reason":"stop","output":"Deployed.","usage":{"input_tokens":20,"output_tokens":7,"cache_read_tokens":4,"reasoning_tokens":2},"turns":2}}
+

@@ -1,0 +1,30 @@
+data: {"type":"RUN_STARTED","threadId":"thread_1","runId":"agui_run_1","protocolVersion":"1.0"}
+
+data: {"type":"TOOL_CALL_RESULT","messageId":"result-call_1","role":"tool","toolCallId":"call_1","content":"deployed to prod"}
+
+data: {"type":"TOOL_CALL_RESULT","messageId":"result-call_2","role":"tool","toolCallId":"call_2","content":"The user denied this tool call."}
+
+data: {"type":"TOOL_CALL_RESULT","messageId":"result-call_3","role":"tool","toolCallId":"call_3","content":"timeout"}
+
+data: {"type":"STEP_STARTED","stepName":"turn 2"}
+
+data: {"type":"REASONING_START","messageId":"run_1-2-0"}
+
+data: {"type":"REASONING_MESSAGE_START","messageId":"run_1-2-0","role":"reasoning"}
+
+data: {"type":"REASONING_MESSAGE_CONTENT","messageId":"run_1-2-0","delta":"Done thinking"}
+
+data: {"type":"REASONING_MESSAGE_END","messageId":"run_1-2-0"}
+
+data: {"type":"REASONING_END","messageId":"run_1-2-0"}
+
+data: {"type":"TEXT_MESSAGE_START","messageId":"run_1-2-1","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"run_1-2-1","delta":"Deployed."}
+
+data: {"type":"TEXT_MESSAGE_END","messageId":"run_1-2-1"}
+
+data: {"type":"STEP_FINISHED","stepName":"turn 2"}
+
+data: {"type":"RUN_FINISHED","threadId":"thread_1","runId":"agui_run_1","result":"Deployed.","outcome":{"type":"success"},"usage":[{"inputTokens":24,"outputTokens":7,"totalTokens":31,"reasoningTokens":2,"cachedInputTokens":4}]}
+

@@ -1,0 +1,54 @@
+data: {"type":"start","messageId":"msg_run_1"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"text-1-0"}
+
+data: {"type":"text-delta","id":"text-1-0","delta":"Transferring."}
+
+data: {"type":"text-end","id":"text-1-0"}
+
+data: {"type":"tool-input-available","toolCallId":"call_h","toolName":"transfer_to_billing","input":{}}
+
+data: {"type":"tool-output-available","toolCallId":"call_h","output":"Transferred to billing."}
+
+data: {"type":"data-handoff","data":{"from":"chat","to":"billing","tool":"transfer_to_billing","call_id":"call_h"}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"tool-input-available","toolCallId":"call_s","toolName":"screenshot","input":{}}
+
+data: {"type":"tool-output-available","toolCallId":"call_s","output":"screen"}
+
+data: {"type":"file","url":"data:image/png;base64,iVBORw==","mediaType":"image/png"}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"text-3-0"}
+
+data: {"type":"text-delta","id":"text-3-0","delta":"{bad"}
+
+data: {"type":"text-end","id":"text-3-0"}
+
+data: {"type":"data-output-retry","data":{"output":"{bad","problems":["invalid JSON"],"attempt":1,"retries":1}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"text-4-0"}
+
+data: {"type":"text-delta","id":"text-4-0","delta":"{\"card\":\"4242\"}"}
+
+data: {"type":"text-end","id":"text-4-0"}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish","finishReason":"content-filter","messageMetadata":{"agentx":{"run_id":"run_1","status":"blocked","reason":"guardrail pii tripped: card number","usage":{"input_tokens":0,"output_tokens":0},"agent":"billing","guardrail":{"name":"pii","kind":"output","message":"card number"}}}}
+
+data: [DONE]
+

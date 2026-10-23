@@ -1,0 +1,24 @@
+data: {"type":"start","messageId":"msg_run_1"}
+
+data: {"type":"start-step"}
+
+data: {"type":"tool-input-available","toolCallId":"call_0","toolName":"research","input":{"task":"look"}}
+
+data: {"type":"tool-output-available","toolCallId":"call_0","output":"Found it."}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"text-2-0"}
+
+data: {"type":"text-delta","id":"text-2-0","delta":"Here it is."}
+
+data: {"type":"text-end","id":"text-2-0"}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish","finishReason":"stop","messageMetadata":{"agentx":{"run_id":"run_1","status":"completed","usage":{"input_tokens":0,"output_tokens":0}}}}
+
+data: [DONE]
+

@@ -1,0 +1,36 @@
+data: {"type":"RUN_STARTED","threadId":"thread_1","runId":"agui_run_1","protocolVersion":"1.0"}
+
+data: {"type":"STEP_STARTED","stepName":"turn 1"}
+
+data: {"type":"REASONING_START","messageId":"run_1-1-0"}
+
+data: {"type":"REASONING_MESSAGE_START","messageId":"run_1-1-0","role":"reasoning"}
+
+data: {"type":"REASONING_MESSAGE_CONTENT","messageId":"run_1-1-0","delta":"Think"}
+
+data: {"type":"REASONING_MESSAGE_CONTENT","messageId":"run_1-1-0","delta":"ing"}
+
+data: {"type":"TEXT_MESSAGE_START","messageId":"run_1-1-1","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"run_1-1-1","delta":"Deploy"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"run_1-1-1","delta":"ing"}
+
+data: {"type":"TOOL_CALL_START","toolCallId":"call_1","toolCallName":"deploy"}
+
+data: {"type":"TOOL_CALL_ARGS","delta":"{\"env\"","toolCallId":"call_1"}
+
+data: {"type":"TOOL_CALL_ARGS","delta":":\"prod\"}","toolCallId":"call_1"}
+
+data: {"type":"REASONING_MESSAGE_END","messageId":"run_1-1-0"}
+
+data: {"type":"REASONING_END","messageId":"run_1-1-0"}
+
+data: {"type":"TEXT_MESSAGE_END","messageId":"run_1-1-1"}
+
+data: {"type":"TOOL_CALL_END","toolCallId":"call_1"}
+
+data: {"type":"STEP_FINISHED","stepName":"turn 1"}
+
+data: {"type":"RUN_FINISHED","threadId":"thread_1","runId":"agui_run_1","outcome":{"type":"interrupt","interrupts":[{"id":"call_1","reason":"tool_call","message":"Deploys need approval.","toolCallId":"call_1","responseSchema":{"properties":{"approved":{"type":"boolean"},"editedArgs":{"type":"object"},"reason":{"type":"string"}},"required":["approved"],"type":"object"},"metadata":{"agentx":{"agent":"chat","arguments":{"env":"prod"},"tool":"deploy"}}}]},"usage":[{"inputTokens":10,"outputTokens":5,"totalTokens":15}]}
+

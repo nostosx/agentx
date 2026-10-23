@@ -1,0 +1,44 @@
+id: 1
+event: run_start
+data: {"type":"run_start","run_id":"run_1","session_id":"s1","agent":"chat"}
+
+id: 2
+event: turn_start
+data: {"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"chat","turn":1}
+
+id: 3
+event: delta
+data: {"type":"delta","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"delta":{"type":"delta","index":0,"delta":{"type":"reasoning","text":"Think"}}}
+
+id: 4
+event: delta
+data: {"type":"delta","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"delta":{"type":"delta","index":0,"delta":{"type":"reasoning","text":"ing"}}}
+
+id: 5
+event: delta
+data: {"type":"delta","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"delta":{"type":"delta","index":1,"delta":{"type":"text","text":"Deploy"}}}
+
+id: 6
+event: delta
+data: {"type":"delta","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"delta":{"type":"delta","index":1,"delta":{"type":"text","text":"ing"}}}
+
+id: 7
+event: delta
+data: {"type":"delta","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"delta":{"type":"delta","index":2,"delta":{"type":"tool_call","tool_call":{"id":"call_1","name":"deploy","arguments":"{\"env\""}}}}
+
+id: 8
+event: delta
+data: {"type":"delta","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"delta":{"type":"delta","index":2,"delta":{"type":"tool_call","tool_call":{"id":"","name":"","arguments":":\"prod\"}"}}}}
+
+id: 9
+event: message
+data: {"type":"message","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"message":{"role":"assistant","parts":[{"type":"reasoning","text":"Thinking"},{"type":"text","text":"Deploying"},{"type":"tool_call","tool_call":{"id":"call_1","name":"deploy","arguments":{"env":"prod"}}}]}}
+
+id: 10
+event: interrupted
+data: {"type":"interrupted","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"interrupt":{"run_id":"run_1","requests":[{"call":{"id":"call_1","name":"deploy","arguments":{"env":"prod"}},"reason":"Deploys need approval.","agent":"chat"}]}}
+
+id: 11
+event: run_end
+data: {"type":"run_end","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"result":{"run_id":"run_1","status":"interrupted","reason":"awaiting tool approval","finish_reason":"tool_calls","output":"Deploying","usage":{"input_tokens":10,"output_tokens":5},"turns":1,"interrupt":{"run_id":"run_1","requests":[{"call":{"id":"call_1","name":"deploy","arguments":{"env":"prod"}},"reason":"Deploys need approval.","agent":"chat"}]}}}
+

@@ -1,0 +1,18 @@
+data: {"type":"start","messageId":"msg_run_1"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"text-1-0"}
+
+data: {"type":"text-delta","id":"text-1-0","delta":"Partial"}
+
+data: {"type":"text-end","id":"text-1-0"}
+
+data: {"type":"finish-step"}
+
+data: {"type":"error","errorText":"provider unavailable"}
+
+data: {"type":"finish","finishReason":"error","messageMetadata":{"agentx":{"run_id":"run_1","status":"failed","reason":"provider unavailable","usage":{"input_tokens":0,"output_tokens":0}}}}
+
+data: [DONE]
+

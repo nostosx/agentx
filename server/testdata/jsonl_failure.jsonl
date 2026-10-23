@@ -1,0 +1,5 @@
+{"type":"run_start","run_id":"run_1","session_id":"s1","agent":"chat"}
+{"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"chat","turn":1}
+{"type":"delta","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"delta":{"type":"delta","index":0,"delta":{"type":"text","text":"Partial"}}}
+{"type":"run_end","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"result":{"run_id":"run_1","status":"failed","reason":"provider unavailable","output":"","usage":{"input_tokens":0,"output_tokens":0},"turns":1,"error":"provider unavailable"}}
+{"type":"error","code":"run_failed","message":"provider unavailable"}

@@ -1,0 +1,15 @@
+{"type":"run_start","run_id":"run_1","session_id":"s1","agent":"chat"}
+{"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"chat","turn":1}
+{"type":"message","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"message":{"role":"assistant","parts":[{"type":"text","text":"Transferring."},{"type":"tool_call","tool_call":{"id":"call_h","name":"transfer_to_billing","arguments":{}}}]}}
+{"type":"tool_call","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_call":{"id":"call_h","name":"transfer_to_billing","arguments":{}}}
+{"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_call":{"id":"call_h","name":"transfer_to_billing","arguments":{}},"tool_result":{"call_id":"call_h","name":"transfer_to_billing","content":"Transferred to billing."}}
+{"type":"handoff","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"handoff":{"from":"chat","to":"billing","tool":"transfer_to_billing","call_id":"call_h"}}
+{"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"billing","turn":2}
+{"type":"message","run_id":"run_1","session_id":"s1","agent":"billing","turn":2,"message":{"role":"assistant","parts":[{"type":"tool_call","tool_call":{"id":"call_s","name":"screenshot","arguments":{}}}]}}
+{"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"billing","turn":2,"tool_call":{"id":"call_s","name":"screenshot","arguments":{}},"tool_result":{"call_id":"call_s","name":"screenshot","content":"screen","parts":[{"type":"image","media_type":"image/png","data":"iVBORw=="},{"type":"document","file_id":"file_1","provider":"openai"}]}}
+{"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"billing","turn":3}
+{"type":"message","run_id":"run_1","session_id":"s1","agent":"billing","turn":3,"message":{"role":"assistant","parts":[{"type":"text","text":"{bad"}]}}
+{"type":"output_retry","run_id":"run_1","session_id":"s1","agent":"billing","turn":3,"output_retry":{"output":"{bad","problems":["invalid JSON"],"attempt":1,"retries":1}}
+{"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"billing","turn":4}
+{"type":"message","run_id":"run_1","session_id":"s1","agent":"billing","turn":4,"message":{"role":"assistant","parts":[{"type":"text","text":"{\"card\":\"4242\"}"}]}}
+{"type":"run_end","run_id":"run_1","session_id":"s1","agent":"billing","turn":4,"result":{"run_id":"run_1","status":"blocked","reason":"guardrail pii tripped: card number","output":"","usage":{"input_tokens":0,"output_tokens":0},"turns":4,"agent":"billing","guardrail":{"name":"pii","kind":"output","message":"card number"}}}

@@ -1,0 +1,60 @@
+id: 1
+event: run_start
+data: {"type":"run_start","run_id":"run_1","session_id":"s1","agent":"chat"}
+
+id: 2
+event: turn_start
+data: {"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"chat","turn":1}
+
+id: 3
+event: message
+data: {"type":"message","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"message":{"role":"assistant","parts":[{"type":"text","text":"Transferring."},{"type":"tool_call","tool_call":{"id":"call_h","name":"transfer_to_billing","arguments":{}}}]}}
+
+id: 4
+event: tool_call
+data: {"type":"tool_call","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_call":{"id":"call_h","name":"transfer_to_billing","arguments":{}}}
+
+id: 5
+event: tool_result
+data: {"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"tool_call":{"id":"call_h","name":"transfer_to_billing","arguments":{}},"tool_result":{"call_id":"call_h","name":"transfer_to_billing","content":"Transferred to billing."}}
+
+id: 6
+event: handoff
+data: {"type":"handoff","run_id":"run_1","session_id":"s1","agent":"chat","turn":1,"handoff":{"from":"chat","to":"billing","tool":"transfer_to_billing","call_id":"call_h"}}
+
+id: 7
+event: turn_start
+data: {"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"billing","turn":2}
+
+id: 8
+event: message
+data: {"type":"message","run_id":"run_1","session_id":"s1","agent":"billing","turn":2,"message":{"role":"assistant","parts":[{"type":"tool_call","tool_call":{"id":"call_s","name":"screenshot","arguments":{}}}]}}
+
+id: 9
+event: tool_result
+data: {"type":"tool_result","run_id":"run_1","session_id":"s1","agent":"billing","turn":2,"tool_call":{"id":"call_s","name":"screenshot","arguments":{}},"tool_result":{"call_id":"call_s","name":"screenshot","content":"screen","parts":[{"type":"image","media_type":"image/png","data":"iVBORw=="},{"type":"document","file_id":"file_1","provider":"openai"}]}}
+
+id: 10
+event: turn_start
+data: {"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"billing","turn":3}
+
+id: 11
+event: message
+data: {"type":"message","run_id":"run_1","session_id":"s1","agent":"billing","turn":3,"message":{"role":"assistant","parts":[{"type":"text","text":"{bad"}]}}
+
+id: 12
+event: output_retry
+data: {"type":"output_retry","run_id":"run_1","session_id":"s1","agent":"billing","turn":3,"output_retry":{"output":"{bad","problems":["invalid JSON"],"attempt":1,"retries":1}}
+
+id: 13
+event: turn_start
+data: {"type":"turn_start","run_id":"run_1","session_id":"s1","agent":"billing","turn":4}
+
+id: 14
+event: message
+data: {"type":"message","run_id":"run_1","session_id":"s1","agent":"billing","turn":4,"message":{"role":"assistant","parts":[{"type":"text","text":"{\"card\":\"4242\"}"}]}}
+
+id: 15
+event: run_end
+data: {"type":"run_end","run_id":"run_1","session_id":"s1","agent":"billing","turn":4,"result":{"run_id":"run_1","status":"blocked","reason":"guardrail pii tripped: card number","output":"","usage":{"input_tokens":0,"output_tokens":0},"turns":4,"agent":"billing","guardrail":{"name":"pii","kind":"output","message":"card number"}}}
+

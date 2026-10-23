@@ -1,0 +1,40 @@
+data: {"type":"RUN_STARTED","threadId":"thread_1","runId":"agui_run_1","protocolVersion":"1.0"}
+
+data: {"type":"STEP_STARTED","stepName":"turn 1"}
+
+data: {"type":"TOOL_CALL_START","toolCallId":"call_0","toolCallName":"research"}
+
+data: {"type":"TOOL_CALL_ARGS","delta":"{\"task\":\"look\"}","toolCallId":"call_0"}
+
+data: {"type":"TOOL_CALL_END","toolCallId":"call_0"}
+
+data: {"type":"SUBAGENT_STARTED","subagentRunId":"run_sub","name":"research","parentToolCallId":"call_0"}
+
+data: {"type":"STEP_STARTED","subagentRunId":"run_sub","stepName":"turn 1"}
+
+data: {"type":"TEXT_MESSAGE_START","subagentRunId":"run_sub","messageId":"run_sub-1-0","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","subagentRunId":"run_sub","messageId":"run_sub-1-0","delta":"Found it."}
+
+data: {"type":"TEXT_MESSAGE_END","subagentRunId":"run_sub","messageId":"run_sub-1-0"}
+
+data: {"type":"STEP_FINISHED","subagentRunId":"run_sub","stepName":"turn 1"}
+
+data: {"type":"SUBAGENT_FINISHED","subagentRunId":"run_sub","result":"Found it.","outcome":{"type":"success"}}
+
+data: {"type":"TOOL_CALL_RESULT","messageId":"result-call_0","role":"tool","toolCallId":"call_0","content":"Found it."}
+
+data: {"type":"STEP_FINISHED","stepName":"turn 1"}
+
+data: {"type":"STEP_STARTED","stepName":"turn 2"}
+
+data: {"type":"TEXT_MESSAGE_START","messageId":"run_1-2-0","role":"assistant"}
+
+data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"run_1-2-0","delta":"Here it is."}
+
+data: {"type":"TEXT_MESSAGE_END","messageId":"run_1-2-0"}
+
+data: {"type":"STEP_FINISHED","stepName":"turn 2"}
+
+data: {"type":"RUN_FINISHED","threadId":"thread_1","runId":"agui_run_1","result":"Here it is.","outcome":{"type":"success"}}
+

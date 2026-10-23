@@ -1,0 +1,28 @@
+data: {"type":"start","messageId":"msg_run_1"}
+
+data: {"type":"tool-output-available","toolCallId":"call_1","output":"deployed to prod"}
+
+data: {"type":"tool-output-denied","toolCallId":"call_2"}
+
+data: {"type":"tool-output-error","toolCallId":"call_3","errorText":"timeout"}
+
+data: {"type":"start-step"}
+
+data: {"type":"reasoning-start","id":"reasoning-2-0"}
+
+data: {"type":"reasoning-delta","id":"reasoning-2-0","delta":"Done thinking"}
+
+data: {"type":"reasoning-end","id":"reasoning-2-0"}
+
+data: {"type":"text-start","id":"text-2-1"}
+
+data: {"type":"text-delta","id":"text-2-1","delta":"Deployed."}
+
+data: {"type":"text-end","id":"text-2-1"}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish","finishReason":"stop","messageMetadata":{"agentx":{"run_id":"run_1","status":"completed","usage":{"input_tokens":20,"output_tokens":7,"cache_read_tokens":4,"reasoning_tokens":2}}}}
+
+data: [DONE]
+
