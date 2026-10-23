@@ -492,6 +492,11 @@ func literal(w word) bool { return !w.expand && !w.subst && !w.glob && w.lit != 
 
 // joinPath resolves a path given in a command against dir.
 func joinPath(dir, p string) string {
+	// On Windows, a rooted path without a volume is relative to the drive
+	// root, never to the working directory (filepath.IsAbs returns false).
+	if filepath.VolumeName(p) == "" && strings.HasPrefix(filepath.ToSlash(p), "/") {
+		p = filepath.VolumeName(dir) + p
+	}
 	if filepath.IsAbs(p) {
 		return filepath.Clean(p)
 	}

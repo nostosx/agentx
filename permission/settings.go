@@ -143,7 +143,7 @@ func (s *Settings) parse(path string, data []byte, home string) ([]string, error
 	}
 	for _, d := range pm.AdditionalDirectories {
 		if project != "" && !filepath.IsAbs(d) && d != "~" && !strings.HasPrefix(d, "~/") {
-			d = filepath.Join(project, d)
+			d = joinPath(project, d)
 		}
 		s.AdditionalDirectories = append(s.AdditionalDirectories, d)
 	}

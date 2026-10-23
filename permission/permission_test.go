@@ -38,6 +38,15 @@ func newEnv(t *testing.T) env {
 	return env{dir: filepath.Join(dir, "project"), home: filepath.Join(dir, "home")}
 }
 
+// rulePath uses the slash-separated drive syntax of permission rules.
+func rulePath(p string) string {
+	p = filepath.ToSlash(p)
+	if runtime.GOOS == "windows" && len(p) >= 2 && p[1] == ':' {
+		p = "/" + strings.ToLower(p[:1]) + p[2:]
+	}
+	return p
+}
+
 func (e env) policy(t *testing.T, mode permission.Mode, rules ...permission.Rules) *permission.Policy {
 	t.Helper()
 	for _, d := range []string{e.dir, e.home} {
@@ -346,7 +355,7 @@ func TestPathRules(t *testing.T) {
 		{"dot slash is anchored", permission.Rules{Deny: []string{"Read(./.env)"}}, readInfo, "sub/.env", none},
 		{"bare name any depth", permission.Rules{Deny: []string{"Read(.env)"}}, readInfo, "a/b/.env", deny},
 		{"bare name star", permission.Rules{Deny: []string{"Read(*.env)"}}, readInfo, "a/prod.env", deny},
-		{"absolute", permission.Rules{Deny: []string{"Read(//" + strings.TrimPrefix(filepath.ToSlash(other), "/") + "/**)"}}, readInfo, filepath.Join(other, "x"), deny},
+		{"absolute", permission.Rules{Deny: []string{"Read(//" + strings.TrimPrefix(rulePath(other), "/") + "/**)"}}, readInfo, filepath.Join(other, "x"), deny},
 		{"single slash is not absolute", permission.Rules{Deny: []string{"Read(" + filepath.ToSlash(other) + "/**)"}}, readInfo, filepath.Join(other, "x"), none},
 		{"home", permission.Rules{Deny: []string{"Read(~/.ssh/**)"}}, readInfo, filepath.Join(e.home, ".ssh", "id_rsa"), deny},
 		{"outside anchor", permission.Rules{Deny: []string{"Read(.env)"}}, readInfo, filepath.Join(other, ".env"), none},
@@ -371,6 +380,26 @@ func TestPathRules(t *testing.T) {
 				t.Fatalf("%s: got %s, want %s", tt.path, name(got), name(tt.want))
 			}
 		})
+	}
+}
+
+func TestWindowsRootedPaths(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("root-relative paths without a drive are specific to Windows")
+	}
+	t.Parallel()
+	e := newEnv(t)
+	p := e.policy(t, permission.ModeAcceptEdits)
+	for _, path := range []string{`/etc/hosts`, `\etc\hosts`} {
+		if got := decide(p, "", writeInfo, args("path", path)).Decision; got != none {
+			t.Errorf("root-relative %q: got %s, want none", path, name(got))
+		}
+	}
+	rooted := `/blocked/file.txt`
+	absolute := filepath.VolumeName(e.dir) + rooted
+	p = e.policy(t, "", permission.Rules{Deny: []string{"Read(/" + rulePath(absolute) + ")"}})
+	if got := decide(p, "", readInfo, args("path", rooted)).Decision; got != deny {
+		t.Errorf("root-relative deny: got %s, want deny", name(got))
 	}
 }
 
@@ -581,7 +610,7 @@ func TestSuggest(t *testing.T) {
 	p := e.policy(t, "", permission.Rules{Allow: []string{"Bash(make *)"}})
 	got := p.Suggest(&permission.Request{Name: "bash", Info: bashInfo, Known: true,
 		Arguments: args("command", "make && npm test > /tmp/out.txt && ls && rm *.o")})
-	want := []string{"Bash(npm test)", "Edit(//tmp/out.txt)"}
+	want := []string{"Bash(npm test)", "Edit(/" + rulePath(filepath.VolumeName(e.dir)+"/tmp/out.txt") + ")"}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Fatalf("got %q, want %q", got, want)
 	}

@@ -427,10 +427,7 @@ func (p *Policy) resolve(path, dir string) string {
 			path = filepath.Join(p.home, path[1:])
 		}
 	}
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(dir, path)
-	}
-	return filepath.Clean(path)
+	return joinPath(dir, path)
 }
 
 // variants returns the slash-separated forms of an absolute path as given

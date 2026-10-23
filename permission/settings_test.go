@@ -44,7 +44,7 @@ func TestLoadSettings(t *testing.T) {
 	if s.DefaultMode != permission.ModeAcceptEdits || !s.DisableBypassPermissionsMode {
 		t.Fatalf("settings = %+v", s)
 	}
-	if want := []string{filepath.Join(dir, "shared"), "/abs"}; !slices.Equal(s.AdditionalDirectories, want) {
+	if want := []string{filepath.Join(dir, "shared"), filepath.Clean(filepath.VolumeName(dir) + "/abs")}; !slices.Equal(s.AdditionalDirectories, want) {
 		t.Fatalf("directories = %q, want %q", s.AdditionalDirectories, want)
 	}
 	if len(s.Rules) != 2 || s.Rules[0].Base != dir || s.Rules[1].Base != "" ||
