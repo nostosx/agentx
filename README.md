@@ -1483,7 +1483,8 @@ and turn (the `invoke_agent` span has no turn). Providers report their
 - **Content.** The system prompt, messages, tool names, and tool arguments
   and results are recorded only with `middleware.RecordContent()`, because
   they may contain sensitive data.
-- **OpenTelemetry.** The core stays dependency-free; the `otel` module of
+- **OpenTelemetry.** The core uses only the standard library and kitx; the
+  `otel` module of
   [agentx-contrib](https://github.com/nostosx/agentx-contrib#opentelemetry)
   adapts OpenTelemetry providers to `middleware.Tracer` and
   `middleware.Meter`. For other libraries, implement the two interfaces.

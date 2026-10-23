@@ -6,7 +6,9 @@ Report vulnerabilities privately through GitHub's
 [private vulnerability reporting](https://github.com/nostosx/agentx/security/advisories/new)
 for this repository, or for
 [agentx-contrib](https://github.com/nostosx/agentx-contrib/security/advisories/new)
-when the issue is in one of its modules. Do not open a public issue.
+when the issue is in one of its modules. If private reporting is unavailable,
+open an issue asking for a private reporting channel without disclosing the
+vulnerability or exploit details.
 
 Include the version or commit, a description of the impact and, if you
 can, a command, program or test that reproduces it. Keep reproduction data
@@ -16,8 +18,8 @@ until a fix or mitigation is available.
 ## Supported versions
 
 The first release is in preparation; there is no supported published agentx
-version yet. Report issues against a specific commit. After the first v0
-release, fixes will target the latest minor release.
+version yet. Report issues against a specific commit. Starting with v1.0.0,
+security fixes will target the latest minor release in the v1 series.
 
 ## Scope and known limitations
 
