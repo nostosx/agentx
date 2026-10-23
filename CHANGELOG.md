@@ -5,15 +5,15 @@ Notable changes to agentx are recorded here. Versions follow
 public API compatibility. The release workflow uses each version section
 as its release notes.
 
-The first release is in preparation. The section below does not imply a
-published tag or GitHub release. Go 1.27.3 is the toolchain requirement,
-independent of the library version.
+Go 1.27.3 is the toolchain requirement, independent of the library version.
 
 ## Unreleased
 
 ## v1.0.0
 
-Prepared first release for `github.com/nostosx/agentx`, requiring Go
+Release date: 2026-10-23.
+
+Initial release of `github.com/nostosx/agentx`, requiring Go
 1.27.3 and the published `github.com/nostosx/kitx v1.0.0` module.
 
 - Streaming agent runs with typed tools, parallel tool scheduling, structured

@@ -2,8 +2,7 @@
 
 agentx and the modules of agentx-contrib have independent semantic versions.
 Go 1.27.3 is the development toolchain requirement, not the library version.
-The `v1.0.0` changelog section is prepared first-release notes; its presence
-does not mean a tag or GitHub release has been published.
+Core releases start at v1.0.0. The changelog records release dates and scope.
 
 kitx v1.0.0 is already published. Release the core first, followed by contrib
 modules and agentx-examples.
@@ -14,10 +13,8 @@ cannot be reused; do not create release tags before the checks finish.
 
 1. Use Go 1.27.3 and start from reviewed changes intended for `main`.
    Set `Version` in `agentx.go` to the new version without the `v`; MCP
-   servers and telemetry report this value. For v1.0.0, review the prepared
-   notes in `CHANGELOG.md` against the initial release scope. For later
-   releases, move user-visible changes from `Unreleased` into the matching
-   `## vX.Y.Z` section.
+   servers and telemetry report this value. Move user-visible changes from `Unreleased` into the matching
+   `## vX.Y.Z` section in `CHANGELOG.md` and record the release date.
 2. Keep the published kitx v1.0.0 dependency, or deliberately select another
    published release. Verify it from a clean consumer module without
    sibling checkouts or replacement directives.
@@ -44,9 +41,7 @@ This check establishes downstream installation independently of local tests.
 
 ## Release contrib and update examples
 
-Until the core is published, agentx-contrib modules resolve it through a
-placeholder requirement and `replace => ../../agentx`. After the core version
-is available from the public module proxy:
+After the core version is available from the public module proxy:
 
 1. Follow [agentx-contrib's release guide](https://github.com/nostosx/agentx-contrib/blob/main/RELEASING.md)
    to replace development dependencies with that released version and verify

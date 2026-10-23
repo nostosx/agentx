@@ -17,9 +17,8 @@ until a fix or mitigation is available.
 
 ## Supported versions
 
-The first release is in preparation; there is no supported published agentx
-version yet. Report issues against a specific commit. Starting with v1.0.0,
-security fixes will target the latest minor release in the v1 series.
+Security fixes target the latest minor release in the v1 series, starting
+with v1.0.0. Include the affected version or commit in your report.
 
 ## Scope and known limitations
 

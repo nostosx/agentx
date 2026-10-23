@@ -14,16 +14,14 @@ agentx 是一个 Go Agent 框架，用于调用工具、维护对话和恢复被
 - **迭代器流式**：运行过程是 `iter.Seq2[*loop.Event, error]`，模型流是
   `iter.Seq2[*model.StreamEvent, error]`，用普通的 `for range` 就能读取。
 
-> 需要 Go 1.27.3 或更高版本，当前正在准备首个正式版本 v1.0.0。
+> 需要 Go 1.27.3 或更高版本，当前版本为 v1.0.0。
 > 已发布的 v1 版本保持公开 API 兼容，具体变更见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 安装
 
-当前正在准备首次发布，`v1.0.0` 是待发布版本说明。以下安装命令在 core 和
-provider 发布后使用；当前联合开发请按
-[agentx-contrib 的开发说明](https://github.com/nostosx/agentx-contrib/blob/main/README.zh-CN.md#开发)
-并排检出 agentx 和 agentx-contrib。kitx 已使用发布的 v1.0.0，无需本地检出。
-Go 1.27.3 是工具链要求，库版本独立遵循语义版本。
+Go 1.27.3 是工具链要求，库版本独立遵循语义版本。核心通过 Go 模块代理使用
+kitx v1.0.0，无需并排检出仓库或添加本地替换。下面的命令同时安装快速开始所用的
+provider 模块；该模块独立维护版本。
 
 ```sh
 go get github.com/nostosx/agentx@v1.0.0 github.com/nostosx/agentx-contrib/provider@v1.0.0

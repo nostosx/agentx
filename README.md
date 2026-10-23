@@ -18,19 +18,16 @@ permissions, checkpoints and context management through composable packages.
   and model streams `iter.Seq2[*model.StreamEvent, error]`, so you read them
   with a plain `for range` loop.
 
-> Requires Go 1.27.3 or later. The first release, v1.0.0, is in preparation.
+> Requires Go 1.27.3 or later. The current release is v1.0.0.
 > Published v1 releases preserve public API compatibility; see
 > [CHANGELOG.md](CHANGELOG.md).
 
 ## Installation
 
-The first release is being prepared; the `v1.0.0` notes do not indicate a
-published version. Use the installation command below after the core and
-provider module are published. For current development, follow
-[agentx-contrib's sibling-checkout setup](https://github.com/nostosx/agentx-contrib#development).
 Go 1.27.3 is the toolchain requirement; library versions follow semantic
-versioning independently. The core uses the published kitx v1.0.0;
-a local kitx checkout is not required.
+versioning independently. The core uses kitx v1.0.0 from the Go module proxy;
+no sibling checkout or replacement directive is needed. The command below
+also installs the independently versioned provider module used in the quick start.
 
 ```sh
 go get github.com/nostosx/agentx@v1.0.0 github.com/nostosx/agentx-contrib/provider@v1.0.0
