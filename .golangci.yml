@@ -1,0 +1,58 @@
+version: "2"
+
+run:
+  go: "1.27.3"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - depguard
+    - errorlint
+    - gocritic
+    - misspell
+    - modernize
+    - nilerr
+    - noctx
+    - revive
+    - unconvert
+    - usestdlibvars
+  settings:
+    depguard:
+      rules:
+        # The agent loop knows nothing of hooks, context engineering or
+        # other middleware; they depend on it, not the other way round.
+        loop-core:
+          list-mode: strict
+          files:
+            - "**/loop/*.go"
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/nostosx/agentx/model
+            - github.com/nostosx/agentx/tool
+            - github.com/nostosx/kitx/syncmap$
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters:
+          - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/nostosx/agentx

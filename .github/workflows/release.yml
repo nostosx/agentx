@@ -1,0 +1,99 @@
+name: Release
+
+# Run the checks before creating a tag: a version the module proxy has seen
+# cannot be withdrawn. See RELEASING.md.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, such as v1.0.0
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  GOWORK: "off"
+  GOTOOLCHAIN: local
+  VERSION: ${{ inputs.version }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Check version
+        run: |
+          prerelease='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
+          version_re="^v(0|1)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-$prerelease(\\.$prerelease)*)?$"
+          echo "$VERSION" | grep -Eq "$version_re" || { echo "bad version $VERSION"; exit 1; }
+          if echo "$VERSION" | grep -Eq -- '[.-][0-9]{14}-[0-9a-f]{12}$'; then
+            echo "release version must not be a pseudo-version"; exit 1
+          fi
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "release from main"; exit 1; }
+          got=$(sed -n 's/^const Version = "\(.*\)"$/\1/p' agentx.go)
+          [ "v$got" = "$VERSION" ] || { echo "agentx.Version is $got, releasing $VERSION"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then echo "$VERSION exists"; exit 1; fi
+          awk -v v="$VERSION" '/^## /{p = ($2 == v); next} p' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          grep -q . "$RUNNER_TEMP/notes.md" || { echo "CHANGELOG.md has no section ## $VERSION"; exit 1; }
+      - name: Require a released kitx dependency
+        run: |
+          if [ -n "$(go mod edit -json | jq -r '.Replace // [] | .[].Old.Path')" ]; then
+            echo "go.mod still replaces modules; select a released kitx version first"; exit 1
+          fi
+          kit=$(go list -m -f '{{.Version}}' github.com/nostosx/kitx)
+          prerelease='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
+          version_re="^v(0|1)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-$prerelease(\\.$prerelease)*)?$"
+          echo "$kit" | grep -Eq "$version_re" || { echo "bad kitx version $kit"; exit 1; }
+          if echo "$kit" | grep -Eq -- '[.-][0-9]{14}-[0-9a-f]{12}$'; then
+            echo "go.mod requires an unreleased kitx"; exit 1
+          fi
+      - name: Verify
+        run: make check
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          install-mode: goinstall
+          version: v2.15.0
+          install-only: true
+      - run: make lint
+      - name: Install scanner outside the module
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+      - run: make vulncheck
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          awk -v v="$VERSION" '/^## /{p = ($2 == v); next} p' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          gh release create "$VERSION" --target "$GITHUB_SHA" --title "$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Warm module proxy
+        run: GOPROXY=https://proxy.golang.org go list -m "github.com/nostosx/agentx@$VERSION"
