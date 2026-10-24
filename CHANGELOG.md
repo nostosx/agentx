@@ -9,6 +9,10 @@ Go 1.27.3 is the toolchain requirement, independent of the library version.
 
 ## Unreleased
 
+- Complete the standalone quick-start steps, including module initialization,
+  the program entry point and provider credentials and execution requirements.
+- Remove obsolete sibling-checkout instructions for agentx-examples.
+
 ## v1.0.0
 
 Release date: 2026-10-23.

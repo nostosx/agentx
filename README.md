@@ -29,6 +29,14 @@ versioning independently. The core uses kitx v1.0.0 from the Go module proxy;
 no sibling checkout or replacement directive is needed. The command below
 also installs the independently versioned provider module used in the quick start.
 
+Run it inside your application's Go module. For a new application:
+
+```sh
+mkdir agentx-demo
+cd agentx-demo
+go mod init example.com/agentx-demo
+```
+
 ```sh
 go get github.com/nostosx/agentx@v1.0.0 github.com/nostosx/agentx-contrib/provider@v1.0.0
 ```
@@ -38,6 +46,8 @@ Bedrock implementations are in the `provider` module of agentx-contrib,
 which calls provider APIs directly over `net/http` without provider SDKs.
 
 ## Quick start
+
+Save the following program as `main.go` in that directory:
 
 ```go
 package main
@@ -73,6 +83,23 @@ func main() {
 	fmt.Println(answer)
 }
 ```
+
+After saving the file, resolve its imported dependencies:
+
+```sh
+go mod tidy
+```
+
+Set `ANTHROPIC_API_KEY` in your shell, then run `go run .`. This program
+makes a real Anthropic API request and may incur charges. `ANTHROPIC_BASE_URL`
+selects a different endpoint when needed; leave it unset for Anthropic.
+An account with access to the provider's default model is required. Select
+another model with `anthropic.WithModel("your-model-id")` when constructing it.
+
+The feature examples below are fragments: they reuse `ctx`, `m` and other
+values from the surrounding application, and omit imports. Contrib packages
+need their own module installed; see
+[agentx-contrib](https://github.com/nostosx/agentx-contrib#installation).
 
 ## Features
 
@@ -1716,11 +1743,13 @@ applications live in the separate agentx-examples project.
 
 Runnable examples, from single-turn Q&A to serving an agent over HTTP with
 tool approval, live in the separate
-[agentx-examples](https://github.com/nostosx/agentx-examples) project. Check out
-agentx and agentx-contrib alongside it; see its README for the layout:
+[agentx-examples](https://github.com/nostosx/agentx-examples) project. Clone it
+on its own; Go downloads the published dependencies:
 
 ```sh
+git clone https://github.com/nostosx/agentx-examples.git
 cd agentx-examples
+go mod download
 export ANTHROPIC_API_KEY=...
 go run ./cmd/basic "What is an agent loop?"
 ```

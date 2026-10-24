@@ -23,6 +23,14 @@ Go 1.27.3 是工具链要求，库版本独立遵循语义版本。核心通过 
 kitx v1.0.0，无需并排检出仓库或添加本地替换。下面的命令同时安装快速开始所用的
 provider 模块；该模块独立维护版本。
 
+在应用的 Go 模块内执行安装命令。新建应用可以先运行：
+
+```sh
+mkdir agentx-demo
+cd agentx-demo
+go mod init example.com/agentx-demo
+```
+
 ```sh
 go get github.com/nostosx/agentx@v1.0.0 github.com/nostosx/agentx-contrib/provider@v1.0.0
 ```
@@ -31,6 +39,8 @@ go get github.com/nostosx/agentx@v1.0.0 github.com/nostosx/agentx-contrib/provid
 agentx-contrib 的 `provider` 模块，它通过 `net/http` 直接调用 API，无需厂商 SDK。
 
 ## 快速开始
+
+把下面的程序保存为该目录下的 `main.go`：
 
 ```go
 package main
@@ -66,6 +76,21 @@ func main() {
 	fmt.Println(answer)
 }
 ```
+
+保存文件后，解析代码所导入的依赖：
+
+```sh
+go mod tidy
+```
+
+在 shell 中设置 `ANTHROPIC_API_KEY`，然后运行 `go run .`。程序会请求真实的
+Anthropic API，可能产生费用。需要其他端点时可以设置 `ANTHROPIC_BASE_URL`；
+使用 Anthropic 官方服务时保持未设置。账户需要有 Provider 默认模型的访问权限；
+也可以在构造时通过 `anthropic.WithModel("your-model-id")` 选择其他模型。
+
+下面的功能示例是代码片段，复用应用中的 `ctx`、`m` 等值并省略 import。
+使用 contrib 包时还需要安装对应模块，见
+[agentx-contrib](https://github.com/nostosx/agentx-contrib/blob/main/README.zh-CN.md#安装)。
 
 ## 功能
 
@@ -1512,11 +1537,13 @@ Gemini 和 Bedrock）、`otel`、`sqlstore`、`filestore`、`middleware`（日�
 ## 示例
 
 从单轮问答到通过 HTTP 提供带工具审批的 Agent，可运行的示例位于独立项目
-[agentx-examples](https://github.com/nostosx/agentx-examples)。请把 agentx 和
-agentx-contrib 检出在它旁边，具体布局见该项目 README：
+[agentx-examples](https://github.com/nostosx/agentx-examples)。独立检出即可，
+Go 会下载已发布的依赖：
 
 ```sh
+git clone https://github.com/nostosx/agentx-examples.git
 cd agentx-examples
+go mod download
 export ANTHROPIC_API_KEY=...
 go run ./cmd/basic "什么是 Agent Loop？"
 ```
