@@ -7,8 +7,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/nostosx/agentx/guard"
 	"github.com/nostosx/agentx/hook"
+	"github.com/nostosx/agentx/loop"
 	"github.com/nostosx/agentx/model"
+	"github.com/nostosx/agentx/permission"
 	"github.com/nostosx/agentx/skill"
 	"github.com/nostosx/agentx/tool"
 )
@@ -91,7 +94,7 @@ func skillForker(parent Config, hooks *hook.Manager) skill.Forker {
 
 // forkAgent returns the agent that runs a context: fork skill: base, or a
 // new agent named name with parent's model, tools, tool middleware,
-// approver and limits. modelName, unless empty or "inherit", replaces the
+// approver, limits, permission policies and tool guardrails. modelName, unless empty or "inherit", replaces the
 // model of an LLMAgent: with the model SkillConfig.Models resolves it to,
 // or else with the same model sending the name as model.Request.Model.
 // Agents other than LLMAgents run as they are.
@@ -109,6 +112,14 @@ func forkAgent(parent Config, base Agent, name, modelName string) (Agent, error)
 	}
 	switch b := base.(type) {
 	case nil:
+		// The fork runs the parent's tools, so the parent's permission
+		// policies and tool guardrails decide its calls too.
+		var policies []loop.Middleware
+		for _, mw := range parent.Middlewares {
+			if p, ok := mw.(*permission.Policy); ok {
+				policies = append(policies, p)
+			}
+		}
 		return build(Config{
 			Name:            name,
 			Model:           resolve(parent.Model),
@@ -123,6 +134,8 @@ func forkAgent(parent Config, base Agent, name, modelName string) (Agent, error)
 			Parallelism:     parent.Parallelism,
 			Logger:          parent.Logger,
 			Limits:          parent.Limits,
+			Middlewares:     policies,
+			Guardrails:      guard.Config{Tool: parent.Guardrails.Tool},
 			SkillConfig: skill.Config{
 				ProjectDir: parent.SkillConfig.ProjectDir,
 				Files:      parent.SkillConfig.Files,

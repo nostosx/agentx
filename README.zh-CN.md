@@ -801,7 +801,8 @@ Skills 使用与 Claude Code 相同的 `SKILL.md` 格式：开头是 YAML front 
   `agent.RunSkill` 或 `Registry.Invoke` 调用它们。在本次运行结束前，
   `allowed-tools` 免审批，`disallowed-tools` 被移除，`model` 和 `effort`
   生效。`context: fork` 在子 Agent 中运行 Skill：默认为 `general-purpose`，
-  或传给 `WithSkillAgents` 的 Agent。Skill 的 `hooks` 在整个会话中有效，
+  或传给 `WithSkillAgents` 的 Agent。默认子 Agent 使用父 Agent 的工具，并受父 Agent 的
+  权限策略和工具 Guardrail 约束。Skill 的 `hooks` 在整个会话中有效，
   带 `paths` 的 Skill 在读取或编辑匹配文件后出现。
 - **基础目录**：从磁盘加载的 Skill 会把所在目录告诉模型，方便它找到附带的
   文件；嵌入的 Skill 没有基础目录。

@@ -7,9 +7,11 @@ import (
 	"testing"
 
 	"github.com/nostosx/agentx/agent"
+	"github.com/nostosx/agentx/guard"
 	"github.com/nostosx/agentx/loop"
 	"github.com/nostosx/agentx/model"
 	"github.com/nostosx/agentx/model/modeltest"
+	"github.com/nostosx/agentx/permission"
 	"github.com/nostosx/agentx/skill"
 	"github.com/nostosx/agentx/tool"
 )
@@ -365,5 +367,56 @@ func TestRunSkillFork(t *testing.T) {
 	}
 	if r := toolResults(res.Messages)["c1"]; r.IsError || r.Content != "report body" || !strings.Contains(m.Requests()[1].Messages[0].Text(), "Write the weekly report.") {
 		t.Errorf("fork result = %+v", r)
+	}
+}
+
+// A forked skill runs the parent's tools under the parent's permission
+// policy: a call the policy denies is denied in the fork too.
+func TestForkedSkillKeepsPermissions(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	m := modeltest.New(
+		modeltest.CallTools(invoke("c1", "task", "")),
+		modeltest.CallTools(modeltest.Call{ID: "s1", Name: "danger"}),
+		modeltest.Reply("sub done"),
+		modeltest.Reply("parent done"),
+	)
+	policy := permission.MustNew(permission.Config{Dir: t.TempDir(), Rules: []permission.Rules{{Deny: []string{"danger"}}}})
+	a := agent.MustNew("assistant", agent.WithModel(m), agent.WithTools(dangerTool(&calls)), agent.WithPermissions(policy),
+		agent.WithSkills(defineSkill(t, skill.Metadata{Name: "task", Context: "fork"}, "Do the task with danger.")))
+	res, err := agent.NewRunner(a, nil).RunText(t.Context(), "s", "go")
+	if err != nil || res.Status != loop.StatusCompleted || res.Output != "parent done" || calls.Load() != 0 {
+		t.Fatalf("run = %+v, %v; calls = %d", res, err, calls.Load())
+	}
+	sub := m.Requests()[2]
+	if r := toolResults(sub.Messages)["s1"]; r == nil || !r.IsError {
+		t.Errorf("forked call result = %+v, want a denial", r)
+	}
+}
+
+// Tool guardrails of the parent check the calls of a forked skill.
+func TestForkedSkillKeepsToolGuardrails(t *testing.T) {
+	t.Parallel()
+	var calls, checks atomic.Int32
+	echo := tool.Func("echo", "Echoes.", func(context.Context, struct{}) (string, error) {
+		calls.Add(1)
+		return "echo", nil
+	})
+	m := modeltest.New(
+		modeltest.CallTools(invoke("c1", "task", "")),
+		modeltest.CallTools(modeltest.Call{ID: "s1", Name: "echo"}),
+		modeltest.Reply("sub done"),
+		modeltest.Reply("parent done"),
+	)
+	a := agent.MustNew("assistant", agent.WithModel(m), agent.WithTools(echo),
+		agent.WithToolGuardrail(guard.ToolGuardrail{Name: "no-echo", Tools: []string{"echo"},
+			Before: func(context.Context, *loop.Run, *model.ToolCall) (guard.Result, error) {
+				checks.Add(1)
+				return guard.Result{Tripwire: true, Message: "no echo"}, nil
+			}}),
+		agent.WithSkills(defineSkill(t, skill.Metadata{Name: "task", Context: "fork"}, "Echo something.")))
+	_, _ = agent.NewRunner(a, nil).RunText(t.Context(), "s", "go")
+	if checks.Load() != 1 || calls.Load() != 0 {
+		t.Errorf("guardrail checks = %d, tool calls = %d; want the fork's call checked and not run", checks.Load(), calls.Load())
 	}
 }

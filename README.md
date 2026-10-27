@@ -920,7 +920,8 @@ when the model uses it.
   run ends, `allowed-tools` skip approval, `disallowed-tools` are removed,
   and `model` and `effort` apply. `context: fork` runs the skill in a
   sub-agent: `general-purpose` by default, or an agent passed to
-  `WithSkillAgents`. Skill `hooks` last for the session, and skills with
+  `WithSkillAgents`. The default sub-agent runs the parent's tools under the
+  parent's permission policy and tool guardrails. Skill `hooks` last for the session, and skills with
   `paths` appear once a matching file is read or edited.
 - **Base directory.** Skills from disk show the model their directory, so
   it can find bundled files. Embedded skills have none.
