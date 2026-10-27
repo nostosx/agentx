@@ -1472,6 +1472,40 @@ any of these stages:
   rewrite approved arguments. An ask decision is already satisfied by the
   explicit approval. Hooks and unchanged approvals are not repeated.
 
+#### Tool call pipeline
+
+`agent.New` registers its middleware in this order: input guardrails, hooks,
+skills, the `WithMiddleware` and `WithPermissions` middleware in the order
+those options are given, handoffs, context engineering, and finally tool and
+output guardrails. A tool call then passes these steps:
+
+1. **BeforeTool:** `PreToolUse` hooks, an active skill's allowed and
+   disallowed tools, `WithMiddleware`/`WithPermissions` middleware, the
+   handoff check and tool input guardrails. The most restrictive decision
+   wins in any order: a hook's allow does not lift a permission ask or deny.
+   The first denial skips the remaining stages; a tripped tool input
+   guardrail ends the run. A permission policy also sees the decision so far,
+   which matters in `dontAsk` mode, so register deciding middleware before
+   `WithPermissions`.
+2. **Approval** when a stage asked, or no stage decided and the tool requires
+   approval. Allowed calls skip it.
+3. **RevalidateTool** when an approval edited the arguments. Hooks do not run
+   again.
+4. **Execution:** schema validation, then `WrapTool` middleware (first
+   outermost, tool output guardrails innermost), then `WithToolMiddleware`
+   (first outermost), then the tool.
+5. **AfterTool** in reverse: guardrails, `WithMiddleware`/`WithPermissions`
+   middleware, skills, then `PostToolUse` hooks. Denied calls fire no hooks.
+
+| Purpose | Use |
+| --- | --- |
+| Rules and modes for tools, paths and commands | `permission.Policy` with `WithPermissions` |
+| Policies kept outside the program | Command or HTTP hooks with `WithHooks` |
+| Checks whose failure must stop the run | `WithToolGuardrail` |
+| Go policies on arguments | `loop.Middleware` with `BeforeTool` and `loop.ToolRevalidator` |
+| Timeouts, truncation and other execution concerns | `WithToolMiddleware`; `loop.ToolWrapper` when the run is needed |
+| Who approves which calls | `WithApprover`, `tool.CallApprover`, `tool.Info.RequiresApproval` |
+
 The `middleware` package provides tracing and metrics. Logging
 (`logging.New`) and retries with exponential backoff (`retry.New`), which
 retry only transient failures, are in the `middleware` module of

@@ -1290,6 +1290,33 @@ runtime 中间件的形式接入。Hook 和上下文工程也是中间件，`age
   错误，但不能改写已批准参数；要求审批的决定已由这次明确审批满足。Hook 和
   未修改参数的审批不会重复执行。
 
+#### 工具调用流水线
+
+`agent.New` 按以下顺序注册中间件：输入 Guardrail、Hook、Skill、按选项传入顺序排列的
+`WithMiddleware` 与 `WithPermissions` 中间件、Handoff、上下文工程，最后是工具与输出
+Guardrail。每次工具调用依次经过：
+
+1. **BeforeTool：** `PreToolUse` Hook、当前 Skill 的允许与禁用工具、
+   `WithMiddleware`/`WithPermissions` 中间件、Handoff 检查和工具输入 Guardrail。
+   无论顺序如何，最严格的决定生效：Hook 的允许不能解除权限规则的询问或拒绝。首个拒绝
+   会跳过后续阶段；工具输入 Guardrail 触发时结束 run。权限策略还会读取此前的决定，
+   这在 `dontAsk` 模式下会影响结果，因此作出决定的中间件应在 `WithPermissions` 之前注册。
+2. **审批：** 有阶段要求审批，或没有阶段作出决定且工具需要审批时进行；已允许的调用跳过审批。
+3. **RevalidateTool：** 审批修改了参数时执行，Hook 不会重复执行。
+4. **执行：** 先按 Schema 校验参数，再经过 `WrapTool` 中间件（先注册的在最外层，
+   工具输出 Guardrail 在最内层）、`WithToolMiddleware`（先注册的在最外层），最后调用工具。
+5. **AfterTool：** 倒序执行：Guardrail、`WithMiddleware`/`WithPermissions` 中间件、
+   Skill，最后是 `PostToolUse` Hook。被拒绝的调用不会触发 Hook。
+
+| 用途 | 机制 |
+| --- | --- |
+| 工具、路径和命令的规则与模式 | `permission.Policy` 配合 `WithPermissions` |
+| 由程序外部维护的策略 | 通过 `WithHooks` 配置命令或 HTTP Hook |
+| 失败时必须结束 run 的检查 | `WithToolGuardrail` |
+| 针对参数的 Go 策略 | 实现 `BeforeTool` 与 `loop.ToolRevalidator` 的 `loop.Middleware` |
+| 超时、截断等执行层关注点 | `WithToolMiddleware`；需要访问 run 时用 `loop.ToolWrapper` |
+| 哪些调用需要审批以及由谁审批 | `WithApprover`、`tool.CallApprover`、`tool.Info.RequiresApproval` |
+
 `middleware` 包提供链路追踪和指标。日志（`logging.New`）和只重试临时性故障的
 指数退避重试（`retry.New`）位于
 [agentx-contrib](https://github.com/nostosx/agentx-contrib/blob/main/README.zh-CN.md#中间件)

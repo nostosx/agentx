@@ -1,5 +1,62 @@
 // Package agent provides LLM agents built on the runtime loop, composable
 // as sub-agents, and a Runner that persists conversations in sessions.
+//
+// # Tool call pipeline
+//
+// New installs its loop middleware in this order: input guardrails, hooks
+// (WithHooks), skills (WithSkills), the middleware of WithMiddleware and
+// WithPermissions in the order those options are given, handoffs, context
+// engineering, and finally tool and output guardrails. Each tool call the
+// model requests then passes through these steps:
+//
+//  1. BeforeTool, in that order: PreToolUse hooks, the allowed and
+//     disallowed tools of an active skill, the WithMiddleware and
+//     WithPermissions middleware, the handoff check, and tool input
+//     guardrails. Each stage sees the arguments as earlier stages rewrote
+//     them and may allow the call, ask for approval or deny it. The most
+//     restrictive decision wins whatever the order, so a hook that allows a
+//     call does not lift a permission rule's ask or deny, and the first
+//     denial skips the remaining stages. A permission.Policy also receives
+//     the decision so far, which changes its result in dontAsk mode;
+//     register middleware that decides calls before WithPermissions. A tool
+//     input guardrail that trips ends the run instead of denying the call.
+//  2. Approval, when a stage asked, or when no stage decided and the tool
+//     requires approval (tool.Info.RequiresApproval, per call for a
+//     tool.CallApprover). The Approver of WithApprover decides; without one
+//     the run is interrupted and resumed with the approvals. An allowed
+//     call skips approval.
+//  3. RevalidateTool, when an approval changed the arguments: the
+//     permission policy, tool input guardrails and any other
+//     loop.ToolRevalidator check them again. BeforeTool, including hooks,
+//     does not run again.
+//  4. Execution. The arguments are validated against the tool's schema,
+//     then the call runs inside the WrapTool middleware, the first in the
+//     order above outermost, so tool output guardrails wrap the call most
+//     closely. Inside those wrappers run the tool middleware of
+//     WithToolMiddleware, the first outermost, and then the tool.
+//  5. AfterTool, in reverse order: the guardrails first, which end the run
+//     if a tool output guardrail tripped during execution, then the
+//     WithMiddleware and WithPermissions middleware, skills, and PostToolUse
+//     or PostToolUseFailure hooks last. Denied calls pass AfterTool too, but
+//     fire no hooks.
+//
+// Choose the mechanism by purpose:
+//
+//   - permission.Policy (WithPermissions): rules and modes for tools, paths
+//     and commands, with remembered approvals.
+//   - hook.Manager (WithHooks): Claude Code compatible command and HTTP
+//     hooks, for policies kept outside the program.
+//   - Tool guardrails (WithToolGuardrail): checks whose failure must stop
+//     the run, on the arguments that will run and the result the tool
+//     returned.
+//   - A loop.Middleware with BeforeTool (WithMiddleware): policies written
+//     in Go. Middleware that enforces an argument policy must also
+//     implement loop.ToolRevalidator.
+//   - tool.Middleware (WithToolMiddleware): execution concerns such as
+//     timeouts and output truncation that need no access to the run; use a
+//     loop.ToolWrapper when the wrapper needs it.
+//   - WithApprover, tool.CallApprover or tool.Info.RequiresApproval: which
+//     calls need approval and who grants it.
 package agent
 
 import (
