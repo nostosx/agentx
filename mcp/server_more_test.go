@@ -19,7 +19,7 @@ import (
 
 func TestLegacyServerRequestCancelled(t *testing.T) {
 	t.Parallel()
-	f := newFixture(t, nil)
+	f := newFixture(t, ServerOptions{})
 	handlerDone := make(chan error, 1)
 	started := make(chan struct{})
 	c := connectStdio(t, f.s, WithProtocolVersion(LegacyProtocolVersion), WithElicitation(func(ctx context.Context, _ *ElicitRequest) (*ElicitResult, error) {
@@ -68,7 +68,7 @@ func TestLegacyURLElicitation(t *testing.T) {
 			}
 			return "linked", nil
 		})
-		f := newFixture(t, &ServerOptions{Tools: []tool.Tool{link}})
+		f := newFixture(t, ServerOptions{Tools: []tool.Tool{link}})
 		var urls []string
 		c := connectStdio(t, f.s, WithProtocolVersion(LegacyProtocolVersion), WithElicitation(func(_ context.Context, req *ElicitRequest) (*ElicitResult, error) {
 			urls = append(urls, req.URL)
@@ -94,7 +94,7 @@ func TestURLModeElicitBothGenerations(t *testing.T) {
 	for _, g := range generations {
 		t.Run(g.name, func(t *testing.T) {
 			t.Parallel()
-			f := newFixture(t, &ServerOptions{Tools: []tool.Tool{visit}})
+			f := newFixture(t, ServerOptions{Tools: []tool.Tool{visit}})
 			var got *ElicitRequest
 			c := connectStdio(t, f.s, append(slices.Clone(g.opts), WithElicitation(func(_ context.Context, req *ElicitRequest) (*ElicitResult, error) {
 				got = req
@@ -162,7 +162,7 @@ func TestServerSources(t *testing.T) {
 	copts := []ClientOption{WithElicitation(func(context.Context, *ElicitRequest) (*ElicitResult, error) {
 		return &ElicitResult{Action: ElicitAccept, Content: map[string]any{"topic": "go"}}, nil
 	})}
-	opts := &ServerOptions{Resources: staticSource{}, Prompts: staticSource{}}
+	opts := ServerOptions{Resources: staticSource{}, Prompts: staticSource{}}
 	forEach(t, opts, copts, func(t *testing.T, f *srvFixture, c *Client, g generation) {
 		ctx := t.Context()
 		res, err := c.ListResources(ctx)
@@ -237,7 +237,7 @@ func (x *stdioExchange) recv(t *testing.T) string {
 
 func TestServeStdioProtocolErrors(t *testing.T) {
 	t.Parallel()
-	f := newFixture(t, nil)
+	f := newFixture(t, ServerOptions{})
 	x := newStdioExchange(t, f.s)
 	for _, tt := range []struct {
 		in   string
@@ -284,7 +284,7 @@ func TestServeStdioProtocolErrors(t *testing.T) {
 
 func TestAddResourceTemplateErrors(t *testing.T) {
 	t.Parallel()
-	s := NewServer(Implementation{}, nil)
+	s := NewServer(Implementation{}, ServerOptions{})
 	for _, tmpl := range []string{"file:///{path", "file:///{?q}", "file:///{a,b}", "file:///{}"} {
 		if err := s.AddResourceTemplate(ResourceTemplate{URITemplate: tmpl}, nil); err == nil {
 			t.Errorf("%s accepted", tmpl)
@@ -325,7 +325,7 @@ func TestMCPTool(t *testing.T) {
 
 func TestServerRemoveAndAccessors(t *testing.T) {
 	t.Parallel()
-	f := newFixture(t, nil)
+	f := newFixture(t, ServerOptions{})
 	if f.s.Info().Name != "fixture" || f.s.Registry().Len() != 8 {
 		t.Fatalf("Info %+v, %d tools", f.s.Info(), f.s.Registry().Len())
 	}
@@ -344,7 +344,7 @@ func TestServerRemoveAndAccessors(t *testing.T) {
 
 func TestHTTPServerListenKeepAlive(t *testing.T) {
 	t.Parallel()
-	_, ts, h := newHTTPFixture(t, nil, &HTTPOptions{KeepAlive: 10 * time.Millisecond})
+	_, ts, h := newHTTPFixture(t, ServerOptions{}, HTTPOptions{KeepAlive: 10 * time.Millisecond})
 	body, hdr := modernRequest(1, "subscriptions/listen", map[string]any{"notifications": map[string]any{"toolsListChanged": true}})
 	st := openStream(t, http.MethodPost, ts.URL, hdr, body)
 	defer st.resp.Body.Close()

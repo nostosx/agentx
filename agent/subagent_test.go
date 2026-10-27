@@ -314,14 +314,14 @@ func TestMaxDepth(t *testing.T) {
 	}
 }
 
-func TestAsToolWith(t *testing.T) {
+func TestAsToolOptions(t *testing.T) {
 	t.Parallel()
 	sub := agent.MustNew("helper", agent.WithModel(modeltest.New(modeltest.Reply("ok"))), agent.WithDescription("Helps."))
-	wrapped := agent.AsToolWith(sub, agent.ToolOptions{Name: "ask_helper", Description: "Ask the helper.", Concurrent: true})
+	wrapped := agent.AsTool(sub, agent.ToolOptions{Name: "ask_helper", Description: "Ask the helper.", Concurrent: true})
 	if info := wrapped.Info(); info.Name != "ask_helper" || info.Description != "Ask the helper." || !info.Concurrent {
 		t.Fatalf("info = %+v", info)
 	}
-	if info := agent.AsTool(sub, nil).Info(); info.Name != "helper" || !strings.HasPrefix(info.Description, "Helps. ") || info.Concurrent {
+	if info := agent.AsTool(sub, agent.ToolOptions{}).Info(); info.Name != "helper" || !strings.HasPrefix(info.Description, "Helps. ") || info.Concurrent {
 		t.Fatalf("default info = %+v", info)
 	}
 	res, err := wrapped.Call(t.Context(), json.RawMessage(`{"prompt":"task"}`))

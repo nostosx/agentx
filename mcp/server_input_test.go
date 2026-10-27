@@ -10,7 +10,7 @@ import (
 
 func TestInputRetryRestoresRequestBeforeAnswers(t *testing.T) {
 	t.Parallel()
-	s := NewServer(Implementation{}, nil)
+	s := NewServer(Implementation{}, ServerOptions{})
 	t.Cleanup(func() { _ = s.Close() })
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()

@@ -305,7 +305,7 @@ func TestSubagentStopHookIsBounded(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
-			wrapped := agent.AsTool(agent.MustNew("writer", agent.WithModel(subModel)), hooks)
+			wrapped := agent.AsTool(agent.MustNew("writer", agent.WithModel(subModel)), agent.ToolOptions{Hooks: hooks})
 			res, err := wrapped.Call(t.Context(), json.RawMessage(`{"prompt":"task"}`))
 			if err != nil || res.IsError || len(subModel.Requests()) != tt.calls {
 				t.Fatalf("Call = %+v, %v; sub-agent calls = %d, want %d", res, err, len(subModel.Requests()), tt.calls)
@@ -333,7 +333,7 @@ func TestSubagentStopContextContinuesAndToolCallsResetCap(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	wrapped := agent.AsTool(agent.MustNew("writer", agent.WithModel(subModel), agent.WithTools(ok)), hooks)
+	wrapped := agent.AsTool(agent.MustNew("writer", agent.WithModel(subModel), agent.WithTools(ok)), agent.ToolOptions{Hooks: hooks})
 	res, err := wrapped.Call(t.Context(), json.RawMessage(`{"prompt":"task"}`))
 	if err != nil || res.IsError || res.Content != "final" || len(subModel.Requests()) != 4 {
 		t.Fatalf("Call = %+v, %v; sub-agent calls = %d", res, err, len(subModel.Requests()))

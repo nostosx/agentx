@@ -215,7 +215,7 @@ func build(cfg Config) (*LLMAgent, error) {
 	}
 	for _, sub := range cfg.SubAgents {
 		opts := ToolOptions{Hooks: hooks, Events: cfg.SubAgentEvents, Concurrent: cfg.ConcurrentSubAgents, MaxDepth: cfg.MaxDepth}
-		if err := add(AsToolWith(sub, opts)); err != nil {
+		if err := add(AsTool(sub, opts)); err != nil {
 			return nil, err
 		}
 	}
@@ -409,7 +409,6 @@ func scopedMemoryProvider(m memory.Memory, scope memory.ScopeFunc, limit int) ac
 // interrupted with the sub-agent's requests; resuming it resumes the
 // sub-agent with the decisions.
 //
-// AsTool uses the defaults of ToolOptions; see AsToolWith.
-func AsTool(a Agent, hooks *hook.Manager) tool.Tool {
-	return AsToolWith(a, ToolOptions{Hooks: hooks})
-}
+// Before the sub-agent starts a task, SubagentStart hooks of
+// ToolOptions.Hooks run; their AdditionalContext is added in front of the
+// task. The zero ToolOptions gives the defaults.

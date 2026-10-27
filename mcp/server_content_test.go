@@ -58,7 +58,7 @@ func TestServerMediaRoundTrip(t *testing.T) {
 			model.AudioPart("audio/wav", []byte("wav")),
 			model.DocumentPart("application/pdf", []byte("%PDF"), "r.pdf")), nil
 	})
-	forEach(t, &ServerOptions{Tools: []tool.Tool{shot}}, nil, func(t *testing.T, _ *srvFixture, c *Client, _ generation) {
+	forEach(t, ServerOptions{Tools: []tool.Tool{shot}}, nil, func(t *testing.T, _ *srvFixture, c *Client, _ generation) {
 		tools, err := Tools(t.Context(), c, "srv", Filter(func(x Tool) bool { return x.Name == "shot" }))
 		if err != nil || len(tools) != 1 {
 			t.Fatalf("tools = %v, %v", tools, err)

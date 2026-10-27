@@ -63,7 +63,7 @@ func newSkillManager(cfg *Config) (*skill.Manager, *hook.Manager, error) {
 
 // skillForker returns the skill.Forker of an agent configured by parent:
 // it runs a context: fork skill on the agent its agent field names, as a
-// sub-agent like AsToolWith, with the skill's model.
+// sub-agent like AsTool, with the skill's model.
 func skillForker(parent Config, hooks *hook.Manager) skill.Forker {
 	return func(ctx context.Context, s skill.Skill, task string) (*tool.Result, error) {
 		meta := s.Metadata()
@@ -83,7 +83,7 @@ func skillForker(parent Config, hooks *hook.Manager) skill.Forker {
 		if err != nil {
 			return nil, err
 		}
-		t := AsToolWith(a, ToolOptions{Name: skill.ToolName, Description: meta.Description, Hooks: hooks, Events: parent.SubAgentEvents, MaxDepth: parent.MaxDepth})
+		t := AsTool(a, ToolOptions{Name: skill.ToolName, Description: meta.Description, Hooks: hooks, Events: parent.SubAgentEvents, MaxDepth: parent.MaxDepth})
 		args, err := json.Marshal(taskArgs{Prompt: task})
 		if err != nil {
 			return nil, err

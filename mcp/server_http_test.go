@@ -79,7 +79,7 @@ func rpcCode(body string) int {
 	return m.Error.Code
 }
 
-func newHTTPFixture(t *testing.T, opts *ServerOptions, hopts *HTTPOptions) (*srvFixture, *httptest.Server, *HTTPHandler) {
+func newHTTPFixture(t *testing.T, opts ServerOptions, hopts HTTPOptions) (*srvFixture, *httptest.Server, *HTTPHandler) {
 	t.Helper()
 	f := newFixture(t, opts)
 	h := f.s.HTTPHandler(hopts)
@@ -93,7 +93,7 @@ func newHTTPFixture(t *testing.T, opts *ServerOptions, hopts *HTTPOptions) (*srv
 
 func TestHTTPServerModernValidation(t *testing.T) {
 	t.Parallel()
-	_, ts, _ := newHTTPFixture(t, nil, nil)
+	_, ts, _ := newHTTPFixture(t, ServerOptions{}, HTTPOptions{})
 	body, h := modernRequest(1, "tools/call", map[string]any{"name": "echo", "arguments": map[string]any{"text": "x"}})
 	with := func(change func(map[string]string)) map[string]string {
 		c := maps.Clone(h)
@@ -177,7 +177,7 @@ func TestHTTPServerParamHeaders(t *testing.T) {
 	sql := tool.New("sql", "Run SQL.", nil, func(_ context.Context, args json.RawMessage) (*tool.Result, error) {
 		return tool.Text(string(args)), nil
 	}, func(i *tool.Info) { i.RawParameters = schema })
-	f, ts, _ := newHTTPFixture(t, &ServerOptions{Tools: []tool.Tool{sql}}, nil)
+	f, ts, _ := newHTTPFixture(t, ServerOptions{Tools: []tool.Tool{sql}}, HTTPOptions{})
 	_ = f
 	c := connectHTTP(t, ts.URL)
 	if _, err := c.ListTools(t.Context()); err != nil {
@@ -215,7 +215,7 @@ func TestHTTPServerParamHeaders(t *testing.T) {
 
 func TestHTTPServerOriginAndHost(t *testing.T) {
 	t.Parallel()
-	_, ts, _ := newHTTPFixture(t, nil, &HTTPOptions{AllowedOrigins: []string{"https://app.example"}})
+	_, ts, _ := newHTTPFixture(t, ServerOptions{}, HTTPOptions{AllowedOrigins: []string{"https://app.example"}})
 	body, h := modernRequest(1, "tools/list", nil)
 	for _, tt := range []struct {
 		origin string
@@ -247,7 +247,7 @@ func TestHTTPServerOriginAndHost(t *testing.T) {
 		t.Errorf("preflight: %d %v", r.status, r.header)
 	}
 
-	_, hts, _ := newHTTPFixture(t, nil, &HTTPOptions{AllowedHosts: []string{"localhost:1"}})
+	_, hts, _ := newHTTPFixture(t, ServerOptions{}, HTTPOptions{AllowedHosts: []string{"localhost:1"}})
 	if r := rawDo(t, http.MethodPost, hts.URL, h, body); r.status != 403 {
 		t.Errorf("Host check: %d", r.status)
 	}
@@ -255,7 +255,7 @@ func TestHTTPServerOriginAndHost(t *testing.T) {
 
 func TestHTTPServerSessions(t *testing.T) {
 	t.Parallel()
-	_, ts, h := newHTTPFixture(t, nil, nil)
+	_, ts, h := newHTTPFixture(t, ServerOptions{}, HTTPOptions{})
 	init := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"raw","version":"1"}}}`
 	r := rawDo(t, http.MethodPost, ts.URL, nil, init)
 	sid := r.header.Get("Mcp-Session-Id")
@@ -382,7 +382,7 @@ func TestHTTPServerResumption(t *testing.T) {
 		<-release
 		return "released", nil
 	})
-	_, ts, _ := newHTTPFixture(t, &ServerOptions{Tools: []tool.Tool{gate}}, nil)
+	_, ts, _ := newHTTPFixture(t, ServerOptions{Tools: []tool.Tool{gate}}, HTTPOptions{})
 	t.Cleanup(unblock)
 	r := rawDo(t, http.MethodPost, ts.URL, nil,
 		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{}}}`)
@@ -449,8 +449,8 @@ func TestHTTPServerPollingWithClient(t *testing.T) {
 				return "", ctx.Err()
 			}
 		})
-		f := newFixture(t, &ServerOptions{Tools: []tool.Tool{slow}})
-		h := f.s.HTTPHandler(&HTTPOptions{PollInterval: 40 * time.Millisecond, RetryInterval: 10 * time.Millisecond})
+		f := newFixture(t, ServerOptions{Tools: []tool.Tool{slow}})
+		h := f.s.HTTPHandler(HTTPOptions{PollInterval: 40 * time.Millisecond, RetryInterval: 10 * time.Millisecond})
 		ch := &countingHandler{h: h, counts: map[string]int{}}
 		ts := httptest.NewTestServer(t, ch)
 		defer h.Close()
@@ -470,8 +470,8 @@ func TestHTTPServerPollingWithClient(t *testing.T) {
 
 func TestHTTPServerSessionExpiryAndRenewal(t *testing.T) {
 	t.Parallel()
-	f := newFixture(t, nil)
-	c, _, h := connectHTTPServer(t, f.s, &HTTPOptions{SessionTimeout: 30 * time.Millisecond}, WithProtocolVersion(LegacyProtocolVersion))
+	f := newFixture(t, ServerOptions{})
+	c, _, h := connectHTTPServer(t, f.s, HTTPOptions{SessionTimeout: 30 * time.Millisecond}, WithProtocolVersion(LegacyProtocolVersion))
 	ok := eventually(func() bool {
 		h.mu.Lock()
 		defer h.mu.Unlock()
@@ -488,7 +488,7 @@ func TestHTTPServerSessionExpiryAndRenewal(t *testing.T) {
 
 func TestHTTPServerStandaloneStream(t *testing.T) {
 	t.Parallel()
-	f, ts, _ := newHTTPFixture(t, nil, nil)
+	f, ts, _ := newHTTPFixture(t, ServerOptions{}, HTTPOptions{})
 	r := rawDo(t, http.MethodPost, ts.URL, nil,
 		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{}}}`)
 	sid := r.header.Get("Mcp-Session-Id")
@@ -510,8 +510,8 @@ func TestHTTPServerStandaloneStream(t *testing.T) {
 
 func TestHTTPServerModernOnly(t *testing.T) {
 	t.Parallel()
-	f := newFixture(t, &ServerOptions{ModernOnly: true})
-	c, ts, _ := connectHTTPServer(t, f.s, nil)
+	f := newFixture(t, ServerOptions{ModernOnly: true})
+	c, ts, _ := connectHTTPServer(t, f.s, HTTPOptions{})
 	if c.ProtocolVersion() != ProtocolVersion || len(c.Server().SupportedVersions) != 1 {
 		t.Errorf("version %s, supported %v", c.ProtocolVersion(), c.Server().SupportedVersions)
 	}
@@ -546,9 +546,9 @@ func (s *switchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func TestInputRequiredReplayOnAnotherInstance(t *testing.T) {
 	t.Parallel()
 	key := []byte("shared state key")
-	f1 := newFixture(t, &ServerOptions{StateKey: key})
-	f2 := newFixture(t, &ServerOptions{StateKey: key})
-	h1, h2 := f1.s.HTTPHandler(nil), f2.s.HTTPHandler(nil)
+	f1 := newFixture(t, ServerOptions{StateKey: key})
+	f2 := newFixture(t, ServerOptions{StateKey: key})
+	h1, h2 := f1.s.HTTPHandler(HTTPOptions{}), f2.s.HTTPHandler(HTTPOptions{})
 	ts := httptest.NewServer(&switchHandler{a: h1, b: h2})
 	defer ts.Close()
 	var prompts []string
@@ -580,7 +580,7 @@ func TestInputRequiredReplayOnAnotherInstance(t *testing.T) {
 
 func TestInputRequiredStateValidation(t *testing.T) {
 	t.Parallel()
-	f, ts, _ := newHTTPFixture(t, &ServerOptions{InputTimeout: time.Hour}, nil)
+	f, ts, _ := newHTTPFixture(t, ServerOptions{InputTimeout: time.Hour}, HTTPOptions{})
 	call := func(id int, args map[string]any, extra map[string]any) map[string]any {
 		params := map[string]any{"name": "ask", "arguments": args}
 		maps.Copy(params, extra)
@@ -645,8 +645,8 @@ func TestInputRequiredStateValidation(t *testing.T) {
 func TestInputRequiredExpiry(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
-		f := newFixture(t, &ServerOptions{InputTimeout: 50 * time.Millisecond})
-		ts := httptest.NewTestServer(t, f.s.HTTPHandler(nil))
+		f := newFixture(t, ServerOptions{InputTimeout: 50 * time.Millisecond})
+		ts := httptest.NewTestServer(t, f.s.HTTPHandler(HTTPOptions{}))
 		slowUser := func(ctx context.Context, _ *ElicitRequest) (*ElicitResult, error) {
 			time.Sleep(200 * time.Millisecond)
 			return &ElicitResult{Action: ElicitAccept, Content: map[string]any{"name": "x"}}, nil
@@ -673,14 +673,14 @@ func TestInputRequiredExpiry(t *testing.T) {
 
 func TestInputRequiredCancelledByClient(t *testing.T) {
 	t.Parallel()
-	f := newFixture(t, nil)
+	f := newFixture(t, ServerOptions{})
 	started := make(chan struct{})
 	block := func(ctx context.Context, _ *ElicitRequest) (*ElicitResult, error) {
 		close(started)
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}
-	c, _, _ := connectHTTPServer(t, f.s, nil, WithElicitation(block))
+	c, _, _ := connectHTTPServer(t, f.s, HTTPOptions{}, WithElicitation(block))
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	errc := make(chan error, 1)

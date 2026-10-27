@@ -1115,7 +1115,7 @@ for ev, err := range coordinator.Run(ctx, agent.Text("Write about MCP")) {
 }
 ```
 
-`agent.AsToolWith` builds the tool for a single agent with its own name,
+`agent.AsTool` builds the tool for a single agent with its own name,
 description and these options, for use with `WithTools`.
 
 ### Handoffs
@@ -1394,8 +1394,8 @@ if err != nil {
 	log.Fatal(err)
 }
 defer lr.Close()
-cfg := &mcp.OAuthConfig{Store: filestore.MCPTokens(tokenPath)}
-lr.Configure(cfg)
+cfg := mcp.OAuthConfig{Store: filestore.MCPTokens(tokenPath)}
+lr.Configure(&cfg)
 c, err := mcp.Connect(ctx, mcp.HTTP("https://example.com/mcp"), mcp.WithOAuth(cfg))
 ```
 
@@ -1408,8 +1408,8 @@ clients of every version above:
   `tool.Result.Parts` become image and audio content, embedded resources
   for other media (and for audio before 2025-03-26), and resource links
   for media by URL (text before 2025-06-18).
-  `mcp.AgentTool(a, nil)` exposes an agent, asking the client's user to
-  approve its tool calls.
+  `mcp.AgentTool(a, mcp.AgentToolOptions{})` exposes an agent, asking the
+  client's user to approve its tool calls.
 - **Resources and prompts:** `AddResource`, `AddResourceTemplate`
   (`{var}` and `{+var}`), `AddPrompt`, or `ResourceSource` and
   `PromptSource` implementations. Changes notify `subscriptions/listen`
@@ -1434,8 +1434,8 @@ clients of every version above:
 
 ```go
 srv := mcp.NewServer(mcp.Implementation{Name: "files", Version: "1.0"},
-	&mcp.ServerOptions{Tools: []tool.Tool{readTool, mcp.AgentTool(a, nil)}})
-http.Handle("/mcp", srv.HTTPHandler(nil))
+	mcp.ServerOptions{Tools: []tool.Tool{readTool, mcp.AgentTool(a, mcp.AgentToolOptions{})}})
+http.Handle("/mcp", srv.HTTPHandler(mcp.HTTPOptions{}))
 ```
 
 ### Middleware

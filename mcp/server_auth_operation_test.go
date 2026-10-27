@@ -23,9 +23,9 @@ func TestOperationScopesUseMethodIdentifier(t *testing.T) {
 		for _, extra := range []bool{false, true} {
 			for _, granted := range []bool{false, true} {
 				t.Run(fmt.Sprintf("%s/extra=%v/granted=%v", op.method, extra, granted), func(t *testing.T) {
-					f := newFixture(t, nil)
+					f := newFixture(t, ServerOptions{})
 					var got string
-					h := f.s.HTTPHandler(&HTTPOptions{Auth: &AuthOptions{
+					h := f.s.HTTPHandler(HTTPOptions{Auth: &AuthOptions{
 						Scopes: []string{"files:read"},
 						Verify: func(context.Context, string, *http.Request) (*TokenInfo, error) {
 							scopes := []string{"files:read"}

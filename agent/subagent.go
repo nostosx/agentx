@@ -21,7 +21,7 @@ import (
 const DefaultMaxDepth = 5
 
 // ToolOptions configures the tool that runs an agent as a sub-agent; see
-// AsToolWith. The zero value gives the defaults of AsTool.
+// AsTool. The zero value gives the defaults.
 type ToolOptions struct {
 	// Name is the tool name. It defaults to the agent's name. Hooks match
 	// the agent's name either way.
@@ -61,10 +61,7 @@ type taskArgs struct {
 	Prompt string `json:"prompt" jsonschema:"A complete, self-contained description of the task. The agent cannot see this conversation."`
 }
 
-// AsToolWith is like AsTool with options. Before the sub-agent starts a
-// task, SubagentStart hooks run; their AdditionalContext is added in front
-// of the task.
-func AsToolWith(a Agent, opts ToolOptions) tool.Tool {
+func AsTool(a Agent, opts ToolOptions) tool.Tool {
 	desc := opts.Description
 	if desc == "" {
 		desc = cmp.Or(a.Description(), "Delegate a task to the "+a.Name()+" agent.") +

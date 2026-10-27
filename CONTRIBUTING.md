@@ -26,6 +26,17 @@ assembles requests, and `internal/fsmatch` preserves permission matching rules.
 Generic synchronized maps, data URL codecs and text truncation live in kitx.
 Use standard-library UUID generation directly; do not recreate a utils package.
 
+## API conventions
+
+- Pass option and configuration structs by value when their zero value means
+  the defaults and the callee copies them at construction, such as
+  `mcp.ServerOptions`, `mcp.HTTPOptions`, `mcp.OAuthConfig` and
+  `agent.ToolOptions`. Use pointers only for values with shared identity or
+  mutable state, such as `*hook.Manager`, `*permission.Policy` and
+  `*http.Client`.
+- Do not add a second constructor or adapter for the same concept that only
+  differs by its options; extend the options struct instead.
+
 ## Development
 
 Use Go 1.27.3, GNU Make and Bash. The module resolves kitx v1.0.0 from

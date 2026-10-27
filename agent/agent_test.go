@@ -151,7 +151,7 @@ func TestAsTool(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
-			wrapped := agent.AsTool(a, hooks)
+			wrapped := agent.AsTool(a, agent.ToolOptions{Hooks: hooks})
 			if wrapped.Info().Name != "researcher" || !strings.Contains(wrapped.Info().Description, "no knowledge of this conversation") {
 				t.Fatalf("tool info = %+v", wrapped.Info())
 			}
@@ -174,13 +174,13 @@ func TestAsToolInterruptedAndFailed(t *testing.T) {
 	t.Parallel()
 	write := tool.Func("write", "write", func(context.Context, struct{}) (string, error) { return "ok", nil }, tool.RequireApproval())
 	a := agent.MustNew("researcher", agent.WithModel(modeltest.New(modeltest.CallTools(modeltest.Call{ID: "call", Name: "write"}))), agent.WithTools(write))
-	res, err := agent.AsTool(a, nil).Call(t.Context(), json.RawMessage(`{"prompt":"task"}`))
+	res, err := agent.AsTool(a, agent.ToolOptions{}).Call(t.Context(), json.RawMessage(`{"prompt":"task"}`))
 	if err != nil || !res.IsError || !strings.Contains(res.Content, "needs approval") {
 		t.Fatalf("interrupted subagent = %+v, %v", res, err)
 	}
 	wantErr := errors.New("provider failed")
 	a = agent.MustNew("researcher", agent.WithModel(modeltest.New(modeltest.Fail(wantErr))))
-	if _, err := agent.AsTool(a, nil).Call(t.Context(), json.RawMessage(`{"prompt":"task"}`)); !errors.Is(err, wantErr) {
+	if _, err := agent.AsTool(a, agent.ToolOptions{}).Call(t.Context(), json.RawMessage(`{"prompt":"task"}`)); !errors.Is(err, wantErr) {
 		t.Fatalf("failed subagent = %v", err)
 	}
 }

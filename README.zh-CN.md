@@ -978,7 +978,7 @@ for ev, err := range coordinator.Run(ctx, agent.Text("Write about MCP")) {
 }
 ```
 
-`agent.AsToolWith` 可以为单个 Agent 构建工具，并指定自己的名称、描述和上述
+`agent.AsTool` 可以为单个 Agent 构建工具，并指定自己的名称、描述和上述
 选项，再通过 `WithTools` 使用。
 
 ### Handoff
@@ -1220,8 +1220,8 @@ if err != nil {
 	log.Fatal(err)
 }
 defer lr.Close()
-cfg := &mcp.OAuthConfig{Store: filestore.MCPTokens(tokenPath)}
-lr.Configure(cfg)
+cfg := mcp.OAuthConfig{Store: filestore.MCPTokens(tokenPath)}
+lr.Configure(&cfg)
 c, err := mcp.Connect(ctx, mcp.HTTP("https://example.com/mcp"), mcp.WithOAuth(cfg))
 ```
 
@@ -1233,7 +1233,7 @@ c, err := mcp.Connect(ctx, mcp.HTTP("https://example.com/mcp"), mcp.WithOAuth(cf
   `RequiresApproval` 变为 `destructiveHint`。`tool.Result.Parts` 变为图片和
   音频内容；其他媒体（以及 2025-03-26 之前版本中的音频）变为内嵌资源，按 URL
   引用的媒体变为资源链接（2025-06-18 之前版本中为文本）。
-  `mcp.AgentTool(a, nil)` 把 agent 暴露为工具，并请客户端的用户审批它的工具
+  `mcp.AgentTool(a, mcp.AgentToolOptions{})` 把 agent 暴露为工具，并请客户端的用户审批它的工具
   调用。
 - **资源与提示词**：`AddResource`、`AddResourceTemplate`（`{var}` 和
   `{+var}`）、`AddPrompt`，或实现 `ResourceSource` 和 `PromptSource`。变更会
@@ -1255,8 +1255,8 @@ c, err := mcp.Connect(ctx, mcp.HTTP("https://example.com/mcp"), mcp.WithOAuth(cf
 
 ```go
 srv := mcp.NewServer(mcp.Implementation{Name: "files", Version: "1.0"},
-	&mcp.ServerOptions{Tools: []tool.Tool{readTool, mcp.AgentTool(a, nil)}})
-http.Handle("/mcp", srv.HTTPHandler(nil))
+	mcp.ServerOptions{Tools: []tool.Tool{readTool, mcp.AgentTool(a, mcp.AgentToolOptions{})}})
+http.Handle("/mcp", srv.HTTPHandler(mcp.HTTPOptions{}))
 ```
 
 ### 中间件

@@ -223,8 +223,9 @@ func authError(format string, args ...any) error {
 // describes. Connect fails for other transports. It wraps the transport of
 // the HTTPTransport's Client; see OAuthConfig.Transport to authorize other
 // HTTP clients.
-func WithOAuth(cfg *OAuthConfig) ClientOption {
-	return func(c *Client) { c.oauth = cfg }
+// The client keeps a copy of cfg.
+func WithOAuth(cfg OAuthConfig) ClientOption {
+	return func(c *Client) { c.oauth = &cfg }
 }
 
 // applyOAuth wraps the transport's HTTP client for WithOAuth.

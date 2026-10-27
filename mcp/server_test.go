@@ -35,12 +35,9 @@ type srvFixture struct {
 	asks        atomic.Int32
 }
 
-func newFixture(t *testing.T, opts *ServerOptions) *srvFixture {
+func newFixture(t *testing.T, opts ServerOptions) *srvFixture {
 	t.Helper()
 	f := &srvFixture{slowStarted: make(chan struct{}, 8), slowDone: make(chan error, 8)}
-	if opts == nil {
-		opts = &ServerOptions{}
-	}
 	opts.Instructions = "Use echo."
 	opts.Tools = append(opts.Tools,
 		tool.Func("echo", "Echo text.", func(_ context.Context, in echoArgs) (string, error) {
@@ -175,7 +172,7 @@ func dialStdio(t *testing.T, s *Server, opts ...ClientOption) (*Client, error) {
 }
 
 // connectHTTPServer serves s over httptest and connects a client.
-func connectHTTPServer(t *testing.T, s *Server, hopts *HTTPOptions, opts ...ClientOption) (*Client, *httptest.Server, *HTTPHandler) {
+func connectHTTPServer(t *testing.T, s *Server, hopts HTTPOptions, opts ...ClientOption) (*Client, *httptest.Server, *HTTPHandler) {
 	t.Helper()
 	h := s.HTTPHandler(hopts)
 	ts := httptest.NewServer(h)
@@ -199,7 +196,7 @@ func connectVia(t *testing.T, s *Server, transport string, opts ...ClientOption)
 	if transport == "stdio" {
 		return connectStdio(t, s, opts...)
 	}
-	c, _, _ := connectHTTPServer(t, s, nil, opts...)
+	c, _, _ := connectHTTPServer(t, s, HTTPOptions{}, opts...)
 	return c
 }
 
@@ -216,17 +213,13 @@ var generations = []generation{
 }
 
 // forEach runs fn with clients over both transports and generations.
-func forEach(t *testing.T, opts *ServerOptions, copts []ClientOption, fn func(t *testing.T, f *srvFixture, c *Client, g generation)) {
+func forEach(t *testing.T, opts ServerOptions, copts []ClientOption, fn func(t *testing.T, f *srvFixture, c *Client, g generation)) {
 	for _, g := range generations {
 		for _, transport := range []string{"stdio", "http"} {
 			t.Run(transport+"/"+g.name, func(t *testing.T) {
 				t.Parallel()
-				var o *ServerOptions
-				if opts != nil {
-					cp := *opts
-					cp.Tools = slices.Clone(opts.Tools)
-					o = &cp
-				}
+				o := opts
+				o.Tools = slices.Clone(opts.Tools)
 				f := newFixture(t, o)
 				all := append(slices.Clone(g.opts), copts...)
 				fn(t, f, connectVia(t, f.s, transport, all...), g)
@@ -245,7 +238,7 @@ func callText(t *testing.T, c *Client, name string, args string) (string, bool) 
 }
 
 func TestServerBasics(t *testing.T) {
-	forEach(t, nil, nil, func(t *testing.T, f *srvFixture, c *Client, g generation) {
+	forEach(t, ServerOptions{}, nil, func(t *testing.T, f *srvFixture, c *Client, g generation) {
 		if v := c.ProtocolVersion(); v != g.version {
 			t.Fatalf("ProtocolVersion = %q, want %q", v, g.version)
 		}
@@ -304,7 +297,7 @@ func TestServerBasics(t *testing.T) {
 }
 
 func TestServerResourcesAndPrompts(t *testing.T) {
-	forEach(t, nil, nil, func(t *testing.T, f *srvFixture, c *Client, g generation) {
+	forEach(t, ServerOptions{}, nil, func(t *testing.T, f *srvFixture, c *Client, g generation) {
 		ctx := t.Context()
 		res, err := c.ListResources(ctx)
 		if err != nil || len(res) != 1 || res[0].URI != "file:///readme.md" {
@@ -363,7 +356,7 @@ func TestServerClientFeatures(t *testing.T) {
 		}),
 		WithRoots(StaticRoots(Root{URI: "file:///a"}, Root{URI: "file:///b"})),
 	}
-	forEach(t, nil, copts, func(t *testing.T, f *srvFixture, c *Client, g generation) {
+	forEach(t, ServerOptions{}, copts, func(t *testing.T, f *srvFixture, c *Client, g generation) {
 		out, isErr := callText(t, c, "ask", `{}`)
 		if isErr || !strings.HasPrefix(out, "accept accept first-") || !strings.Contains(out, " last-") {
 			t.Errorf("ask = %q, %v", out, isErr)
@@ -381,7 +374,7 @@ func TestServerClientFeatures(t *testing.T) {
 }
 
 func TestServerMissingClientCapability(t *testing.T) {
-	forEach(t, nil, nil, func(t *testing.T, f *srvFixture, c *Client, g generation) {
+	forEach(t, ServerOptions{}, nil, func(t *testing.T, f *srvFixture, c *Client, g generation) {
 		for _, name := range []string{"sample", "ask", "roots"} {
 			_, err := c.CallTool(t.Context(), name, json.RawMessage(`{"text":"x"}`))
 			e, ok := errors.AsType[*Error](err)
@@ -397,7 +390,7 @@ func TestServerLoggingAndProgress(t *testing.T) {
 		for _, transport := range []string{"stdio", "http"} {
 			t.Run(transport+"/"+g.name, func(t *testing.T) {
 				t.Parallel()
-				f := newFixture(t, nil)
+				f := newFixture(t, ServerOptions{})
 				var mu sync.Mutex
 				var logs []LogMessage
 				var progress []string
@@ -455,7 +448,7 @@ func eventually(cond func() bool) bool {
 }
 
 func TestServerCancellation(t *testing.T) {
-	forEach(t, nil, nil, func(t *testing.T, f *srvFixture, c *Client, g generation) {
+	forEach(t, ServerOptions{}, nil, func(t *testing.T, f *srvFixture, c *Client, g generation) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		errc := make(chan error, 1)
@@ -493,7 +486,7 @@ func TestServerCancellation(t *testing.T) {
 }
 
 func TestServerPagination(t *testing.T) {
-	forEach(t, &ServerOptions{PageSize: 3}, nil, func(t *testing.T, f *srvFixture, c *Client, g generation) {
+	forEach(t, ServerOptions{PageSize: 3}, nil, func(t *testing.T, f *srvFixture, c *Client, g generation) {
 		tools, err := c.ListTools(t.Context())
 		if err != nil || len(tools) != 8 {
 			t.Fatalf("ListTools = %d tools, %v", len(tools), err)
@@ -565,7 +558,7 @@ func TestServerListenNotifications(t *testing.T) {
 		for _, transport := range []string{"stdio", "http"} {
 			t.Run(transport+"/"+g.name, func(t *testing.T) {
 				t.Parallel()
-				f := newFixture(t, nil)
+				f := newFixture(t, ServerOptions{})
 				var n notes
 				c := connectVia(t, f.s, transport, append(slices.Clone(g.opts), n.option())...)
 				ctx, cancel := context.WithCancel(t.Context())
@@ -613,7 +606,7 @@ func TestServerListenGracefulEnd(t *testing.T) {
 	for _, transport := range []string{"stdio", "http"} {
 		t.Run(transport, func(t *testing.T) {
 			t.Parallel()
-			f := newFixture(t, nil)
+			f := newFixture(t, ServerOptions{})
 			var n notes
 			c := connectVia(t, f.s, transport, n.option())
 			errc := make(chan error, 1)
@@ -634,7 +627,7 @@ func TestServerListenGracefulEnd(t *testing.T) {
 }
 
 func TestServeStdioShutdownEndsListen(t *testing.T) {
-	f := newFixture(t, nil)
+	f := newFixture(t, ServerOptions{})
 	cr, sw := io.Pipe()
 	sr, cw := io.Pipe()
 	ctx, stop := context.WithCancel(t.Context())

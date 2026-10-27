@@ -87,13 +87,10 @@ type HTTPHandler struct {
 	closed   bool
 }
 
-// HTTPHandler returns a Streamable HTTP handler of the server. opts may be
-// nil.
-func (s *Server) HTTPHandler(opts *HTTPOptions) *HTTPHandler {
-	h := &HTTPHandler{s: s, shutdown: make(chan struct{}), sessions: map[string]*httpSession{}}
-	if opts != nil {
-		h.opts = *opts
-	}
+// HTTPHandler returns a Streamable HTTP handler of the server; the zero
+// opts gives the defaults.
+func (s *Server) HTTPHandler(opts HTTPOptions) *HTTPHandler {
+	h := &HTTPHandler{s: s, shutdown: make(chan struct{}), sessions: map[string]*httpSession{}, opts: opts}
 	o := &h.opts
 	if o.SessionTimeout == 0 {
 		o.SessionTimeout = 30 * time.Minute

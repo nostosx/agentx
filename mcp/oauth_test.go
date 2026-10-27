@@ -389,7 +389,7 @@ type protectedServer struct {
 
 func newProtectedServer(t *testing.T, as *fakeAS, wrap func(http.Handler) http.Handler) *protectedServer {
 	t.Helper()
-	p := &protectedServer{f: newFixture(t, nil)}
+	p := &protectedServer{f: newFixture(t, ServerOptions{})}
 	mux := http.NewServeMux()
 	p.ts = httptest.NewServer(mux)
 	t.Cleanup(p.ts.Close)
@@ -397,7 +397,7 @@ func newProtectedServer(t *testing.T, as *fakeAS, wrap func(http.Handler) http.H
 	p.resource = p.url
 	md := &ProtectedResourceMetadata{Resource: p.resource, AuthorizationServers: []string{as.issuer()},
 		ScopesSupported: []string{"files:read", "files:write"}, BearerMethodsSupported: []string{"header"}}
-	p.h = p.f.s.HTTPHandler(&HTTPOptions{Auth: &AuthOptions{
+	p.h = p.f.s.HTTPHandler(HTTPOptions{Auth: &AuthOptions{
 		Metadata: md,
 		Scopes:   []string{"files:read"},
 		Verify: func(_ context.Context, token string, _ *http.Request) (*TokenInfo, error) {
@@ -453,7 +453,7 @@ func TestOAuthAuthorizationCodeFlow(t *testing.T) {
 			t.Parallel()
 			as := newFakeAS(t, nil)
 			p := newProtectedServer(t, as, nil)
-			cfg := &OAuthConfig{RedirectURL: "http://127.0.0.1:9/callback", Authorize: browser(t), ClientName: "test client"}
+			cfg := OAuthConfig{RedirectURL: "http://127.0.0.1:9/callback", Authorize: browser(t), ClientName: "test client"}
 			c, err := Connect(t.Context(), HTTP(p.url), append(slices.Clone(g.opts), WithOAuth(cfg))...)
 			if err != nil {
 				t.Fatal(err)
@@ -510,7 +510,7 @@ func TestOAuthPersistentStore(t *testing.T) {
 	// The store outlives the clients, as a persistent store outlives a
 	// process.
 	store := NewMemoryTokenStore()
-	cfg := &OAuthConfig{RedirectURL: "http://localhost:9/callback", Authorize: browser(t), Store: store}
+	cfg := OAuthConfig{RedirectURL: "http://localhost:9/callback", Authorize: browser(t), Store: store}
 	for i := range 2 {
 		c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(cfg))
 		if err != nil {
@@ -536,7 +536,7 @@ func TestOAuthExpiredTokenIsRefreshed(t *testing.T) {
 	t.Parallel()
 	as := newFakeAS(t, func(a *fakeAS) { a.expiresIn = 10 })
 	p := newProtectedServer(t, as, nil)
-	cfg := &OAuthConfig{RedirectURL: "http://127.0.0.1:9/callback", Authorize: browser(t)}
+	cfg := OAuthConfig{RedirectURL: "http://127.0.0.1:9/callback", Authorize: browser(t)}
 	c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(cfg))
 	if err != nil {
 		t.Fatal(err)
@@ -580,7 +580,7 @@ func TestOAuthClientCredentials(t *testing.T) {
 			p := newProtectedServer(t, as, nil)
 			cfg := tt.cfg
 			cfg.Grant = GrantClientCredentials
-			c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(&cfg))
+			c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(cfg))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -620,7 +620,7 @@ func TestOAuthRegistrationChoices(t *testing.T) {
 		t.Parallel()
 		as := newFakeAS(t, func(a *fakeAS) { a.cimd = true })
 		p := newProtectedServer(t, as, nil)
-		cfg := &OAuthConfig{ClientMetadataURL: "https://client.example/oauth/meta.json",
+		cfg := OAuthConfig{ClientMetadataURL: "https://client.example/oauth/meta.json",
 			RedirectURL: "http://127.0.0.1:9/callback", Authorize: browser(t)}
 		c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(cfg))
 		if err != nil {
@@ -637,7 +637,7 @@ func TestOAuthRegistrationChoices(t *testing.T) {
 		as.addClient("pre", "")
 		as.clients["pre"].redirects = []string{"http://127.0.0.1:9/callback"}
 		p := newProtectedServer(t, as, nil)
-		cfg := &OAuthConfig{ClientID: "pre", ClientIssuer: as.issuer(), RedirectURL: "http://127.0.0.1:9/callback", Authorize: browser(t)}
+		cfg := OAuthConfig{ClientID: "pre", ClientIssuer: as.issuer(), RedirectURL: "http://127.0.0.1:9/callback", Authorize: browser(t)}
 		c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(cfg))
 		if err != nil {
 			t.Fatal(err)
@@ -647,7 +647,7 @@ func TestOAuthRegistrationChoices(t *testing.T) {
 			t.Errorf("token request = %v", as.last("token"))
 		}
 		cfg.ClientIssuer = "https://elsewhere.example"
-		_, err = Connect(t.Context(), HTTP(p.url), WithOAuth(&OAuthConfig{ClientID: "pre", ClientIssuer: "https://elsewhere.example",
+		_, err = Connect(t.Context(), HTTP(p.url), WithOAuth(OAuthConfig{ClientID: "pre", ClientIssuer: "https://elsewhere.example",
 			RedirectURL: cfg.RedirectURL, Authorize: browser(t)}))
 		if !errors.Is(err, ErrAuthorization) || !strings.Contains(err.Error(), "belongs to") {
 			t.Errorf("credentials of another issuer: %v", err)
@@ -662,7 +662,7 @@ func TestOAuthDiscovery(t *testing.T) {
 			t.Parallel()
 			as := newFakeAS(t, configure)
 			p := newProtectedServer(t, as, nil)
-			c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(&OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: browser(t)}))
+			c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: browser(t)}))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -677,7 +677,7 @@ func TestOAuthDiscovery(t *testing.T) {
 		t.Parallel()
 		as := newFakeAS(t, func(a *fakeAS) { a.tls = true })
 		p := newProtectedServer(t, as, nil)
-		c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(&OAuthConfig{RedirectURL: "https://app.example/cb",
+		c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(OAuthConfig{RedirectURL: "https://app.example/cb",
 			Authorize: browserWith(as.ts.Client()), HTTPClient: as.ts.Client()}))
 		if err != nil {
 			t.Fatal(err)
@@ -695,7 +695,7 @@ func TestOAuthDiscovery(t *testing.T) {
 			t.Parallel()
 			as := newFakeAS(t, configure)
 			p := newProtectedServer(t, as, nil)
-			_, err := Connect(t.Context(), HTTP(p.url), WithOAuth(&OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: browser(t)}))
+			_, err := Connect(t.Context(), HTTP(p.url), WithOAuth(OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: browser(t)}))
 			if !errors.Is(err, ErrAuthorization) || !strings.Contains(err.Error(), want) {
 				t.Fatalf("Connect = %v, want %q", err, want)
 			}
@@ -716,7 +716,7 @@ func TestOAuthResourceMetadataFallbackAndChecks(t *testing.T) {
 	}
 	as := newFakeAS(t, nil)
 	p := newProtectedServer(t, as, strip)
-	c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(&OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: browser(t)}))
+	c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: browser(t)}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -738,7 +738,7 @@ func TestOAuthResourceMetadataFallbackAndChecks(t *testing.T) {
 	})
 	mux.Handle("/md", ProtectedResourceMetadataHandler(&ProtectedResourceMetadata{
 		Resource: "https://other.example/mcp", AuthorizationServers: []string{other.issuer()}}))
-	_, err = Connect(t.Context(), HTTP(ts.URL+"/mcp"), WithOAuth(&OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: browser(t)}))
+	_, err = Connect(t.Context(), HTTP(ts.URL+"/mcp"), WithOAuth(OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: browser(t)}))
 	if !errors.Is(err, ErrAuthorization) || !strings.Contains(err.Error(), "other.example") {
 		t.Errorf("foreign resource: %v", err)
 	}
@@ -750,7 +750,7 @@ func TestOAuthResourceMetadataFallbackAndChecks(t *testing.T) {
 		w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+ts.URL+`/md2"`)
 		w.WriteHeader(http.StatusUnauthorized)
 	})
-	_, err = Connect(t.Context(), HTTP(ts.URL+"/mcp2"), WithOAuth(&OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: browser(t)}))
+	_, err = Connect(t.Context(), HTTP(ts.URL+"/mcp2"), WithOAuth(OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: browser(t)}))
 	if !errors.Is(err, ErrAuthorization) || !strings.Contains(err.Error(), "must use https") {
 		t.Errorf("http authorization server: %v", err)
 	}
@@ -791,21 +791,21 @@ func TestOAuthAuthorizationResponseValidation(t *testing.T) {
 				}
 				return r, err
 			}
-			_, err := Connect(t.Context(), HTTP(p.url), WithOAuth(&OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: authorize}))
+			_, err := Connect(t.Context(), HTTP(p.url), WithOAuth(OAuthConfig{RedirectURL: "http://127.0.0.1:9/cb", Authorize: authorize}))
 			if !errors.Is(err, ErrAuthorization) || !strings.Contains(err.Error(), tt.want) {
 				t.Errorf("Connect = %v, want %q", err, tt.want)
 			}
 		})
 	}
-	_, err := Connect(t.Context(), HTTP(p.url), WithOAuth(&OAuthConfig{}))
+	_, err := Connect(t.Context(), HTTP(p.url), WithOAuth(OAuthConfig{}))
 	if !errors.Is(err, ErrAuthorization) || !strings.Contains(err.Error(), "Authorize") {
 		t.Errorf("without Authorize: %v", err)
 	}
-	_, err = Connect(t.Context(), HTTP(p.url), WithOAuth(&OAuthConfig{RedirectURL: "http://example.com/cb", Authorize: browser(t)}))
+	_, err = Connect(t.Context(), HTTP(p.url), WithOAuth(OAuthConfig{RedirectURL: "http://example.com/cb", Authorize: browser(t)}))
 	if !errors.Is(err, ErrAuthorization) || !strings.Contains(err.Error(), "loopback or https") {
 		t.Errorf("insecure redirect: %v", err)
 	}
-	if _, err := Connect(t.Context(), Stdio("true"), WithOAuth(&OAuthConfig{})); err == nil {
+	if _, err := Connect(t.Context(), Stdio("true"), WithOAuth(OAuthConfig{})); err == nil {
 		t.Error("WithOAuth over stdio succeeded")
 	}
 }
@@ -849,8 +849,8 @@ func TestOAuthLoopbackRedirect(t *testing.T) {
 		})
 		return nil
 	}
-	cfg := &OAuthConfig{}
-	lr.Configure(cfg)
+	cfg := OAuthConfig{}
+	lr.Configure(&cfg)
 	if !strings.HasPrefix(cfg.RedirectURL, "http://127.0.0.1:") || !strings.HasSuffix(cfg.RedirectURL, "/callback") {
 		t.Fatalf("redirect URL %q", cfg.RedirectURL)
 	}
@@ -955,9 +955,9 @@ func TestServerAuthChallenges(t *testing.T) {
 
 func TestServerMetadataAtRoot(t *testing.T) {
 	t.Parallel()
-	s := NewServer(Implementation{}, nil)
+	s := NewServer(Implementation{}, ServerOptions{})
 	md := &ProtectedResourceMetadata{Resource: "https://mcp.example.com", AuthorizationServers: []string{"https://as.example"}}
-	h := s.HTTPHandler(&HTTPOptions{Auth: &AuthOptions{Metadata: md, Verify: func(context.Context, string, *http.Request) (*TokenInfo, error) {
+	h := s.HTTPHandler(HTTPOptions{Auth: &AuthOptions{Metadata: md, Verify: func(context.Context, string, *http.Request) (*TokenInfo, error) {
 		return nil, errors.New("no")
 	}}})
 	ts := httptest.NewServer(h)
@@ -1154,7 +1154,7 @@ func TestOAuthTokenStaysWithItsServer(t *testing.T) {
 	as := newFakeAS(t, nil)
 	p := newProtectedServer(t, as, nil)
 	other := newAuthRecorder(t)
-	cfg := &OAuthConfig{RedirectURL: "http://localhost:9/callback", Authorize: browser(t)}
+	cfg := OAuthConfig{RedirectURL: "http://localhost:9/callback", Authorize: browser(t)}
 	hc := &http.Client{Transport: cfg.Transport(nil)}
 	ht := HTTP(p.url)
 	ht.Client = hc
@@ -1193,7 +1193,7 @@ func TestOAuthRefusesCrossOriginRedirect(t *testing.T) {
 			h.ServeHTTP(w, r)
 		})
 	})
-	cfg := &OAuthConfig{RedirectURL: "http://localhost:9/callback", Authorize: browser(t)}
+	cfg := OAuthConfig{RedirectURL: "http://localhost:9/callback", Authorize: browser(t)}
 	c, err := Connect(t.Context(), HTTP(p.url), WithOAuth(cfg))
 	if err != nil {
 		t.Fatal(err)

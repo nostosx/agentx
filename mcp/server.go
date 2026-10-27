@@ -191,18 +191,17 @@ type staticPrompt struct {
 }
 
 // NewServer returns a server identifying itself with info; a zero info
-// becomes agentx and its version. opts may be nil. It panics if the
-// options' tools have invalid or duplicate names.
-func NewServer(info Implementation, opts *ServerOptions) *Server {
+// becomes agentx and its version; the zero opts serves nothing until tools,
+// resources or prompts are added. It panics if the options' tools have
+// invalid or duplicate names.
+func NewServer(info Implementation, opts ServerOptions) *Server {
 	s := &Server{
 		info:     info,
 		subs:     map[*subscription]struct{}{},
 		sessions: map[*session]struct{}{},
 		conts:    map[string]*continuation{},
 		closing:  make(chan struct{}),
-	}
-	if opts != nil {
-		s.opts = *opts
+		opts:     opts,
 	}
 	if s.info.Name == "" {
 		s.info.Name = "agentx"

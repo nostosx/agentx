@@ -28,7 +28,7 @@ func newAgentServer(t *testing.T) (*Server, *atomic.Int32) {
 		modeltest.Reply("cleaned up"),
 	)
 	a := agent.MustNew("janitor", agent.WithModel(m), agent.WithTools(remove), agent.WithDescription("Cleans up files."))
-	s := NewServer(Implementation{Name: "agents"}, &ServerOptions{Tools: []tool.Tool{AgentTool(a, nil)}})
+	s := NewServer(Implementation{Name: "agents"}, ServerOptions{Tools: []tool.Tool{AgentTool(a, AgentToolOptions{})}})
 	t.Cleanup(func() { _ = s.Close() })
 	return s, &ran
 }
@@ -88,7 +88,7 @@ func TestAgentToolCustomApproval(t *testing.T) {
 	)
 	a := agent.MustNew("worker", agent.WithModel(m), agent.WithTools(remove))
 	var seen []string
-	at := AgentTool(a, &AgentToolOptions{Name: "delegate", Description: "Delegate.",
+	at := AgentTool(a, AgentToolOptions{Name: "delegate", Description: "Delegate.",
 		Approve: func(_ context.Context, req *loop.ApprovalRequest) (loop.Approval, error) {
 			seen = append(seen, req.Call.ID)
 			return loop.Approval{Approved: true}, nil

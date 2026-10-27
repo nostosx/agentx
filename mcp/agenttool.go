@@ -38,11 +38,7 @@ type agentArgs struct {
 //
 // agent.AsTool serves an agent too, but outside a run it cannot obtain
 // approvals.
-func AgentTool(a agent.Agent, opts *AgentToolOptions) tool.Tool {
-	var o AgentToolOptions
-	if opts != nil {
-		o = *opts
-	}
+func AgentTool(a agent.Agent, o AgentToolOptions) tool.Tool {
 	approve := o.Approve
 	if approve == nil {
 		approve = ElicitApproval
