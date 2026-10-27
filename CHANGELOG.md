@@ -9,7 +9,7 @@ Go 1.27.3 is the toolchain requirement, independent of the library version.
 
 ## v1.0.1
 
-Release date: not yet tagged.
+Release date: 2026-10-27.
 
 - Security: `context: fork` skills run by the default `general-purpose`
   sub-agent now apply the parent agent's permission policy and tool

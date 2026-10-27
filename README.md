@@ -18,7 +18,7 @@ permissions, checkpoints and context management through composable packages.
   and model streams `iter.Seq2[*model.StreamEvent, error]`, so you read them
   with a plain `for range` loop.
 
-> Requires Go 1.27.3 or later. The current release is v1.0.0.
+> Requires Go 1.27.3 or later. The current release is v1.0.1.
 > Published v1 releases preserve public API compatibility; see
 > [CHANGELOG.md](CHANGELOG.md).
 
@@ -38,7 +38,7 @@ go mod init example.com/agentx-demo
 ```
 
 ```sh
-go get github.com/nostosx/agentx@v1.0.0 github.com/nostosx/agentx-contrib/provider@v1.0.0
+go get github.com/nostosx/agentx@v1.0.1 github.com/nostosx/agentx-contrib/provider@v1.0.0
 ```
 
 The core module defines `model.Model`; the OpenAI, Anthropic, Gemini and
