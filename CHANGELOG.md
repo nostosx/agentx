@@ -7,11 +7,28 @@ as its release notes.
 
 Go 1.27.3 is the toolchain requirement, independent of the library version.
 
-## Unreleased
+## v1.0.1
 
+Release date: not yet tagged.
+
+- Deprecate `server.Handler` in favor of `server.New`. The `http.Handler` it
+  returns cannot be closed, so background A2A tasks kept running until the
+  process exited; `(*server.Server).Close` cancels them and waits for their
+  sessions to be saved. `Handler` keeps working.
+- MCP OAuth metadata, client registration and token responses larger than
+  1 MiB now fail with an explicit "response larger than" error instead of
+  being truncated and reported as malformed JSON. Read errors of successful
+  responses are reported instead of ignored, and an invalid registration
+  response is quoted only up to 300 bytes.
+- Document the tool call pipeline in the `agent` package and both READMEs:
+  the order in which hooks, skills, middleware, permissions, guardrails,
+  approval and tool middleware see a call, and which mechanism to use for
+  which purpose. Regression tests pin the documented order.
 - Complete the standalone quick-start steps, including module initialization,
   the program entry point and provider credentials and execution requirements.
 - Remove obsolete sibling-checkout instructions for agentx-examples.
+- Existing v1 APIs remain unchanged. Requires Go 1.27.3 and kitx v1.0.0;
+  no new module dependencies.
 
 ## v1.0.0
 
