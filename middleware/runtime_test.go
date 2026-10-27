@@ -9,6 +9,7 @@ import (
 	"github.com/nostosx/agentx/middleware"
 	"github.com/nostosx/agentx/model"
 	"github.com/nostosx/agentx/model/modeltest"
+	"github.com/nostosx/agentx/telemetry"
 	"github.com/nostosx/agentx/tool"
 )
 
@@ -39,11 +40,11 @@ func TestNoopTracer(t *testing.T) {
 	t.Parallel()
 	type key struct{}
 	ctx := context.WithValue(t.Context(), key{}, "kept")
-	got, span := middleware.NoopTracer{}.Start(ctx, "span", middleware.SpanKindClient, middleware.Attr{Key: "k", Value: 1})
+	got, span := telemetry.NoopTracer{}.Start(ctx, "span", telemetry.SpanKindClient, telemetry.Attr{Key: "k", Value: 1})
 	if got != ctx || span == nil {
 		t.Fatalf("Start = %v, %v", got, span)
 	}
-	span.SetAttributes(middleware.Attr{Key: "k", Value: 2})
+	span.SetAttributes(telemetry.Attr{Key: "k", Value: 2})
 	span.RecordError(errors.New("ignored"))
 	span.End()
 
@@ -55,7 +56,7 @@ func TestNoopTracer(t *testing.T) {
 	if err != nil || res.Output != "done" || !m.Requests()[1].Messages[2].ToolResults()[0].IsError {
 		t.Fatalf("Run = %+v, %v", res, err)
 	}
-	failing := newTestRuntime(t, loop.Config{Model: modeltest.New(modeltest.Fail(&model.APIError{StatusCode: 500})), Middlewares: []loop.Middleware{middleware.Tracing(middleware.NoopTracer{})}})
+	failing := newTestRuntime(t, loop.Config{Model: modeltest.New(modeltest.Fail(&model.APIError{StatusCode: 500})), Middlewares: []loop.Middleware{middleware.Tracing(telemetry.NoopTracer{})}})
 	if res, err := loop.Collect(failing.Run(t.Context(), &loop.Request{Input: model.UserText("q")}), nil); err == nil || res.Status != loop.StatusFailed {
 		t.Fatalf("failed Run = %+v, %v", res, err)
 	}

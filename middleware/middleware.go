@@ -1,7 +1,8 @@
 // Package middleware provides the tracing and metrics of agent runs, which
-// plug into an agent with agent.WithMiddleware, and the types other
-// middleware builds on. Tracing and metrics follow the OpenTelemetry GenAI
-// semantic conventions without depending on OpenTelemetry; the
+// plug into an agent with agent.WithMiddleware, and model decorators that
+// other middleware builds on. Tracing and metrics follow the OpenTelemetry
+// GenAI semantic conventions, using the interfaces of the telemetry package,
+// without depending on OpenTelemetry; the
 // github.com/nostosx/agentx-contrib/otel module adapts them, and
 // github.com/nostosx/agentx-contrib/middleware provides logging and retries.
 //

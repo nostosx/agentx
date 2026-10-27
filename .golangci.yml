@@ -32,6 +32,15 @@ linters:
             - github.com/nostosx/agentx/model
             - github.com/nostosx/agentx/tool
             - github.com/nostosx/kitx/syncmap$
+        telemetry-core:
+          list-mode: strict
+          files:
+            - "**/telemetry/*.go"
+            - "!$test"
+          allow:
+            - $gostd
+            - github.com/nostosx/agentx/model
+            - github.com/nostosx/agentx/tool
     revive:
       rules:
         - name: exported

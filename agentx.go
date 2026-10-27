@@ -9,8 +9,10 @@
 //   - tool/builtin: file, search, shell, web and todo tools
 //   - loop:      the agent loop, tool scheduling, events, checkpoints and
 //     the middleware interface that everything below plugs into
-//   - middleware: tracing and metrics of agent runs and the types other
-//     middleware builds on
+//   - telemetry: tracing and metrics interfaces and the spans and run state
+//     carried in contexts
+//   - middleware: tracing and metrics of agent runs and the model
+//     decorators other middleware builds on
 //   - agent:     agent construction, sub-agents and the session-aware runner
 //   - actx:      context-window management and compaction strategies
 //   - session:   conversation sessions and their stores

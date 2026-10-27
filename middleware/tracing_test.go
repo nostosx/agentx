@@ -13,12 +13,13 @@ import (
 	"github.com/nostosx/agentx/middleware"
 	"github.com/nostosx/agentx/model"
 	"github.com/nostosx/agentx/model/modeltest"
+	"github.com/nostosx/agentx/telemetry"
 	"github.com/nostosx/agentx/tool"
 )
 
 type recordingSpan struct {
 	name   string
-	kind   middleware.SpanKind
+	kind   telemetry.SpanKind
 	parent *recordingSpan
 	mu     sync.Mutex
 	attrs  map[string]any
@@ -32,7 +33,7 @@ type recordedEvent struct {
 	attrs map[string]any
 }
 
-func (s *recordingSpan) AddEvent(name string, attrs ...middleware.Attr) {
+func (s *recordingSpan) AddEvent(name string, attrs ...telemetry.Attr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ev := recordedEvent{name: name, attrs: map[string]any{}}
@@ -48,7 +49,7 @@ func (s *recordingSpan) attr(key string) any {
 	return s.attrs[key]
 }
 
-func (s *recordingSpan) SetAttributes(attrs ...middleware.Attr) {
+func (s *recordingSpan) SetAttributes(attrs ...telemetry.Attr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, attr := range attrs {
@@ -77,7 +78,7 @@ type recordingTracer struct {
 	spans []*recordingSpan
 }
 
-func (tr *recordingTracer) Start(ctx context.Context, name string, kind middleware.SpanKind, attrs ...middleware.Attr) (context.Context, middleware.Span) {
+func (tr *recordingTracer) Start(ctx context.Context, name string, kind telemetry.SpanKind, attrs ...telemetry.Attr) (context.Context, telemetry.Span) {
 	s := &recordingSpan{name: name, kind: kind, attrs: map[string]any{}}
 	s.parent, _ = ctx.Value(spanKey{}).(*recordingSpan)
 	s.SetAttributes(attrs...)
@@ -185,7 +186,7 @@ func TestTraceModel(t *testing.T) {
 			if _, ok := span.attrs["gen_ai.request.stream"]; ok != tt.stream {
 				t.Errorf("gen_ai.request.stream present = %v", ok)
 			}
-			if span.kind != middleware.SpanKindClient || span.ended != 1 {
+			if span.kind != telemetry.SpanKindClient || span.ended != 1 {
 				t.Fatalf("span = %+v", span)
 			}
 			switch {
@@ -253,7 +254,7 @@ func TestTraceTools(t *testing.T) {
 				t.Fatalf("tracing changed tool result: %+v, %v", result, err)
 			}
 			s := tracer.find(t, "execute_tool weather")
-			if s.kind != middleware.SpanKindInternal || s.ended != 1 || s.attrs["gen_ai.operation.name"] != "execute_tool" ||
+			if s.kind != telemetry.SpanKindInternal || s.ended != 1 || s.attrs["gen_ai.operation.name"] != "execute_tool" ||
 				s.attrs["gen_ai.tool.name"] != "weather" || s.attrs["gen_ai.tool.call.id"] != "call_1" || s.attrs["gen_ai.tool.type"] != "function" ||
 				s.attrs["gen_ai.tool.description"] != "Look up the weather." || s.attrs["gen_ai.tool.call.arguments"] != `{"city":"Kyoto"}` {
 				t.Fatalf("span = %+v", s)
@@ -309,7 +310,7 @@ func TestTracingAgentRun(t *testing.T) {
 		t.Fatalf("Run = %+v, %v", res, err)
 	}
 	root := tracer.find(t, "invoke_agent assistant")
-	if root.parent != nil || root.kind != middleware.SpanKindInternal || root.ended != 1 ||
+	if root.parent != nil || root.kind != telemetry.SpanKindInternal || root.ended != 1 ||
 		root.attrs["gen_ai.operation.name"] != "invoke_agent" || root.attrs["gen_ai.agent.name"] != "assistant" ||
 		root.attrs["gen_ai.conversation.id"] != "session-1" || root.attrs["agentx.run.status"] != "completed" ||
 		root.attrs["gen_ai.usage.input_tokens"] != 20 || root.attrs["agentx.run_id"] != res.RunID {

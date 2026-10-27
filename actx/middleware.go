@@ -6,8 +6,8 @@ import (
 
 	// The package's middleware type takes the package name.
 	"github.com/nostosx/agentx/loop"
-	trace "github.com/nostosx/agentx/middleware"
 	"github.com/nostosx/agentx/model"
+	"github.com/nostosx/agentx/telemetry"
 )
 
 // MiddlewareOption configures Middleware.
@@ -81,22 +81,22 @@ func (mw *middleware) BeforeTurn(ctx context.Context, run *loop.Run) error {
 	}
 	// The span covers the guard's PreCompact hooks, the compaction and its
 	// observer's PostCompact hooks.
-	ctx, span := trace.StartSpan(ctx, "compact_context", trace.SpanKindInternal,
-		trace.Attr{Key: "agentx.compaction.reason", Value: "auto"})
+	ctx, span := telemetry.StartSpan(ctx, "compact_context", telemetry.SpanKindInternal,
+		telemetry.Attr{Key: "agentx.compaction.reason", Value: "auto"})
 	defer span.End()
 	if mw.guard != nil && !mw.guard(ctx, run, "auto") {
-		span.SetAttributes(trace.Attr{Key: "agentx.compaction.skipped", Value: true})
+		span.SetAttributes(telemetry.Attr{Key: "agentx.compaction.skipped", Value: true})
 		return nil
 	}
 	res, err := mw.m.Compact(ctx, run.System(), run.Messages(), specs)
 	if err != nil {
-		trace.RecordSpanError(span, err)
+		telemetry.RecordSpanError(span, err)
 		run.Logger().Warn("compaction failed", "run_id", run.ID(), "error", err)
 		return nil
 	}
 	span.SetAttributes(
-		trace.Attr{Key: "agentx.compaction.tokens_before", Value: res.Before},
-		trace.Attr{Key: "agentx.compaction.tokens_after", Value: res.After},
+		telemetry.Attr{Key: "agentx.compaction.tokens_before", Value: res.Before},
+		telemetry.Attr{Key: "agentx.compaction.tokens_after", Value: res.After},
 	)
 	usable := mw.m.Window().Usable()
 	if res.After >= res.Before {
@@ -113,8 +113,8 @@ func (mw *middleware) BeforeTurn(ctx context.Context, run *loop.Run) error {
 		run.Logger().Warn("conversation still exceeds the context window after compaction", "run_id", run.ID(), "before", res.Before, "after", res.After, "usable", usable)
 	}
 	run.ReplaceMessages(res.Messages)
-	span.SetAttributes(trace.Attr{Key: "agentx.compaction.applied", Value: true})
-	trace.MarkCompacted(ctx, run)
+	span.SetAttributes(telemetry.Attr{Key: "agentx.compaction.applied", Value: true})
+	telemetry.MarkCompacted(ctx, run.ID())
 	compaction := &loop.Compaction{
 		Messages: res.Messages,
 		Before:   res.Before,

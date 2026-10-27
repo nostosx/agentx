@@ -5,95 +5,19 @@ import (
 	"context"
 	"errors"
 	"iter"
-	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/nostosx/agentx/loop"
 	"github.com/nostosx/agentx/model"
+	"github.com/nostosx/agentx/telemetry"
 	"github.com/nostosx/agentx/tool"
 )
-
-// Attr is a span attribute.
-type Attr struct {
-	Key   string
-	Value any
-}
-
-// SpanKind is the kind of a span, as in OpenTelemetry.
-type SpanKind int
-
-const (
-	// SpanKindInternal marks work done in the process, such as agent runs
-	// and tool calls.
-	SpanKindInternal SpanKind = iota
-	// SpanKindClient marks calls to a remote service, such as model calls.
-	SpanKindClient
-)
-
-// Span is an in-progress trace span.
-type Span interface {
-	SetAttributes(attrs ...Attr)
-	// RecordError records err and marks the span as failed: adapters should
-	// set the span status to error.
-	RecordError(err error)
-	End()
-}
-
-// EventSpan is a Span that records events. Spans that do not implement it
-// drop the events of this package, such as the retries of a model call.
-type EventSpan interface {
-	Span
-	AddEvent(name string, attrs ...Attr)
-}
-
-// Tracer starts spans. Adapt OpenTelemetry or another tracing library to
-// it; agentx itself has no tracing dependency.
-//
-// Spans follow the OpenTelemetry GenAI semantic conventions
-// (https://github.com/open-telemetry/semantic-conventions-genai):
-//
-//   - "invoke_agent {agent}" (internal) covers a run of the agent loop;
-//   - "{operation} {model}" (client), such as "chat gpt-6-astra", covers a
-//     model call;
-//   - "execute_tool {tool}" (internal) covers a tool call. A sub-agent run
-//     by agent.AsTool is a child of its execute_tool span.
-//
-// Work the conventions do not cover gets agentx spans: "hook {event}" for
-// the hooks of a lifecycle event and "compact_context" for an automatic
-// compaction. Retries of a model call are "agentx.retry" events.
-//
-// Attributes use the gen_ai.* names of the conventions, plus agentx.run_id,
-// agentx.turn and agentx.run.status. The span of an agent a run was handed
-// off to has agentx.handoff.from, the agent that handed it off; a run that
-// a guardrail blocked has agentx.guardrail.name and agentx.guardrail.kind
-// and an "agentx.guardrail" event, which also holds the guardrail's
-// message when content is recorded. A failed operation sets error.type to
-// the provider's error code, "timeout", "canceled", "panic", "tool_error"
-// for a tool that returned an error result, or "_OTHER".
-type Tracer interface {
-	Start(ctx context.Context, name string, kind SpanKind, attrs ...Attr) (context.Context, Span)
-}
-
-// NoopTracer discards spans.
-type NoopTracer struct{}
-
-// Start implements Tracer.
-func (NoopTracer) Start(ctx context.Context, _ string, _ SpanKind, _ ...Attr) (context.Context, Span) {
-	return ctx, noopSpan{}
-}
-
-type noopSpan struct{}
-
-func (noopSpan) SetAttributes(...Attr) {}
-func (noopSpan) RecordError(error)     {}
-func (noopSpan) End()                  {}
 
 // TraceOption configures tracing.
 type TraceOption func(*traceConfig)
 
 type traceConfig struct {
-	tracer  Tracer
+	tracer  telemetry.Tracer
 	content bool
 }
 
@@ -106,10 +30,10 @@ type traceConfig struct {
 // large, so the conventions make them opt-in.
 func RecordContent() TraceOption { return func(c *traceConfig) { c.content = true } }
 
-func newTraceConfig(t Tracer, opts []TraceOption) *traceConfig {
+func newTraceConfig(t telemetry.Tracer, opts []TraceOption) *traceConfig {
 	c := &traceConfig{tracer: t}
 	if c.tracer == nil {
-		c.tracer = NoopTracer{}
+		c.tracer = telemetry.NoopTracer{}
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -123,9 +47,10 @@ func newTraceConfig(t Tracer, opts []TraceOption) *traceConfig {
 // gen_ai.conversation.id, the run ID and the turn.
 //
 // The run's context carries the tracer, so hooks and compaction add their
-// spans with StartSpan, and a sub-agent traced the same way nests under
-// the execute_tool span that runs it.
-func Tracing(t Tracer, opts ...TraceOption) loop.Middleware {
+// spans with telemetry.StartSpan, and a sub-agent traced the same way nests
+// under the execute_tool span that runs it. telemetry.Tracer lists the spans
+// and their attributes.
+func Tracing(t telemetry.Tracer, opts ...TraceOption) loop.Middleware {
 	return tracing{newTraceConfig(t, opts)}
 }
 
@@ -135,66 +60,15 @@ func (tracing) Name() string { return "tracing" }
 
 // runTrace is the tracing state of a run, carried in its context.
 type runTrace struct {
-	cfg  *traceConfig
 	run  *loop.Run
-	span Span
-	// compacted is set once the run compacted its conversation.
-	compacted atomic.Bool
+	span telemetry.Span
 }
 
-type (
-	runTraceKey struct{}
-	spanKey     struct{}
-)
+type runTraceKey struct{}
 
 func runTraceFrom(ctx context.Context) *runTrace {
 	rt, _ := ctx.Value(runTraceKey{}).(*runTrace)
 	return rt
-}
-
-func withSpan(ctx context.Context, span Span) context.Context {
-	return context.WithValue(ctx, spanKey{}, span)
-}
-
-// SpanFromContext returns the innermost span the tracing of this package
-// started in ctx, or a span that discards everything.
-func SpanFromContext(ctx context.Context) Span {
-	if span, ok := ctx.Value(spanKey{}).(Span); ok {
-		return span
-	}
-	return noopSpan{}
-}
-
-// AddEvent records an event on the span of ctx, if it is an EventSpan.
-func AddEvent(ctx context.Context, name string, attrs ...Attr) {
-	if span, ok := SpanFromContext(ctx).(EventSpan); ok {
-		span.AddEvent(name, attrs...)
-	}
-}
-
-// StartSpan starts a span with the tracer of the run ctx belongs to, as
-// installed by Tracing, for work done inside the run, such as hooks. Without
-// such a tracer it returns ctx and a span that discards everything.
-func StartSpan(ctx context.Context, name string, kind SpanKind, attrs ...Attr) (context.Context, Span) {
-	rt := runTraceFrom(ctx)
-	if rt == nil {
-		return ctx, noopSpan{}
-	}
-	ctx, span := rt.cfg.tracer.Start(ctx, name, kind, attrs...)
-	return withSpan(ctx, span), span
-}
-
-// RecordSpanError records err on span with a low-cardinality error.type,
-// as the spans of this package do.
-func RecordSpanError(span Span, err error) { recordError(span, err) }
-
-// MarkCompacted records that run compacted its conversation; ctx must
-// belong to the run. Its later model spans carry
-// gen_ai.conversation.compacted.
-func MarkCompacted(ctx context.Context, run *loop.Run) {
-	if rt := runTraceFrom(ctx); rt != nil && rt.run == run {
-		rt.compacted.Store(true)
-	}
 }
 
 func (tr tracing) WrapContext(ctx context.Context, run *loop.Run) (context.Context, func()) {
@@ -202,13 +76,14 @@ func (tr tracing) WrapContext(ctx context.Context, run *loop.Run) (context.Conte
 	if run.Agent() != "" {
 		name += " " + run.Agent()
 	}
-	attrs := append([]Attr{{"gen_ai.operation.name", "invoke_agent"}}, agentAttrs(run)...)
+	attrs := append([]telemetry.Attr{{Key: "gen_ai.operation.name", Value: "invoke_agent"}}, agentAttrs(run)...)
 	if from, _ := run.Value(loop.HandoffFromKey); from != "" {
-		attrs = append(attrs, Attr{"agentx.handoff.from", from})
+		attrs = append(attrs, telemetry.Attr{Key: "agentx.handoff.from", Value: from})
 	}
-	ctx, span := tr.cfg.tracer.Start(ctx, name, SpanKindInternal, attrs...)
-	ctx = context.WithValue(ctx, runTraceKey{}, &runTrace{cfg: tr.cfg, run: run, span: span})
-	return withSpan(ctx, span), span.End
+	ctx, span := tr.cfg.tracer.Start(ctx, name, telemetry.SpanKindInternal, attrs...)
+	ctx = telemetry.ContextWithRun(ctx, tr.cfg.tracer, run.ID())
+	ctx = context.WithValue(ctx, runTraceKey{}, &runTrace{run: run, span: span})
+	return telemetry.ContextWithSpan(ctx, span), span.End
 }
 
 func (tr tracing) AfterRun(ctx context.Context, run *loop.Run, res *loop.Result) {
@@ -220,24 +95,24 @@ func (tr tracing) AfterRun(ctx context.Context, run *loop.Run, res *loop.Result)
 	// The conventions put only the input and output totals on agent spans:
 	// cache and reasoning breakdowns aggregated over several models
 	// mislead.
-	attrs := []Attr{
-		{"gen_ai.usage.input_tokens", res.Usage.PromptTokens()},
-		{"gen_ai.usage.output_tokens", res.Usage.OutputTokens},
-		{"agentx.run.status", string(res.Status)},
+	attrs := []telemetry.Attr{
+		{Key: "gen_ai.usage.input_tokens", Value: res.Usage.PromptTokens()},
+		{Key: "gen_ai.usage.output_tokens", Value: res.Usage.OutputTokens},
+		{Key: "agentx.run.status", Value: string(res.Status)},
 	}
 	if res.FinishReason != "" {
-		attrs = append(attrs, Attr{"gen_ai.response.finish_reasons", []string{string(res.FinishReason)}})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.response.finish_reasons", Value: []string{string(res.FinishReason)}})
 	}
 	if g := res.Guardrail; g != nil {
-		ga := []Attr{{"agentx.guardrail.name", g.Name}}
+		ga := []telemetry.Attr{{Key: "agentx.guardrail.name", Value: g.Name}}
 		if g.Kind != "" {
-			ga = append(ga, Attr{"agentx.guardrail.kind", g.Kind})
+			ga = append(ga, telemetry.Attr{Key: "agentx.guardrail.kind", Value: g.Kind})
 		}
 		attrs = append(attrs, ga...)
 		if tr.cfg.content && g.Message != "" {
-			ga = append(ga, Attr{"agentx.guardrail.message", g.Message})
+			ga = append(ga, telemetry.Attr{Key: "agentx.guardrail.message", Value: g.Message})
 		}
-		if es, ok := span.(EventSpan); ok {
+		if es, ok := span.(telemetry.EventSpan); ok {
 			es.AddEvent("agentx.guardrail", ga...)
 		}
 	}
@@ -246,13 +121,13 @@ func (tr tracing) AfterRun(ctx context.Context, run *loop.Run, res *loop.Result)
 	}
 	span.SetAttributes(attrs...)
 	if res.Err != nil {
-		recordError(span, res.Err)
+		telemetry.RecordSpanError(span, res.Err)
 	}
 }
 
 // runContent returns the content attributes of a run: its input, the
 // messages before the model's first answer, and its last answer.
-func runContent(run *loop.Run, res *loop.Result) []Attr {
+func runContent(run *loop.Run, res *loop.Result) []telemetry.Attr {
 	var input []*model.Message
 	var output *model.Message
 	for i, msg := range res.NewMessages {
@@ -271,10 +146,7 @@ func runContent(run *loop.Run, res *loop.Result) []Attr {
 }
 
 func (tr tracing) WrapModel(run *loop.Run, next model.Model) model.Model {
-	compacted := func(ctx context.Context) bool {
-		rt := runTraceFrom(ctx)
-		return rt != nil && rt.run == run && rt.compacted.Load()
-	}
+	compacted := func(ctx context.Context) bool { return telemetry.Compacted(ctx, run.ID()) }
 	return traceModel(tr.cfg, runAttrs(run), compacted)(next)
 }
 
@@ -283,42 +155,42 @@ func (tr tracing) WrapTool(run *loop.Run, next tool.Invoker) tool.Invoker {
 }
 
 // agentAttrs identify the agent and conversation of a run.
-func agentAttrs(run *loop.Run) []Attr {
-	var attrs []Attr
+func agentAttrs(run *loop.Run) []telemetry.Attr {
+	var attrs []telemetry.Attr
 	if run.Agent() != "" {
-		attrs = append(attrs, Attr{"gen_ai.agent.name", run.Agent()})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.agent.name", Value: run.Agent()})
 	}
 	if run.SessionID() != "" {
-		attrs = append(attrs, Attr{"gen_ai.conversation.id", run.SessionID()})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.conversation.id", Value: run.SessionID()})
 	}
-	return append(attrs, Attr{"agentx.run_id", run.ID()})
+	return append(attrs, telemetry.Attr{Key: "agentx.run_id", Value: run.ID()})
 }
 
-func runAttrs(run *loop.Run) []Attr {
-	return append(agentAttrs(run), Attr{"agentx.turn", run.Turn()})
+func runAttrs(run *loop.Run) []telemetry.Attr {
+	return append(agentAttrs(run), telemetry.Attr{Key: "agentx.turn", Value: run.Turn()})
 }
 
 // TraceModel records a span for each model call. The provider, operation
 // and default model come from the model's model.Describer.
-func TraceModel(t Tracer, opts ...TraceOption) Model {
+func TraceModel(t telemetry.Tracer, opts ...TraceOption) Model {
 	return traceModel(newTraceConfig(t, opts), nil, nil)
 }
 
 // traceModel traces model calls; compacted, if non-nil, reports whether the
 // run of a call's context compacted its conversation.
-func traceModel(cfg *traceConfig, extra []Attr, compacted func(context.Context) bool) Model {
+func traceModel(cfg *traceConfig, extra []telemetry.Attr, compacted func(context.Context) bool) Model {
 	return func(next model.Model) model.Model {
-		start := func(ctx context.Context, req *model.Request, stream bool) (context.Context, Span) {
+		start := func(ctx context.Context, req *model.Request, stream bool) (context.Context, telemetry.Span) {
 			name, attrs := requestAttrs(model.Describe(next), req, stream)
 			if compacted != nil && compacted(ctx) {
 				// The conventions set it only when compaction is certain.
-				attrs = append(attrs, Attr{"gen_ai.conversation.compacted", true})
+				attrs = append(attrs, telemetry.Attr{Key: "gen_ai.conversation.compacted", Value: true})
 			}
 			if cfg.content {
 				attrs = append(attrs, requestContent(req.System, req.Messages, req.Tools)...)
 			}
-			ctx, span := cfg.tracer.Start(ctx, name, SpanKindClient, append(attrs, extra...)...)
-			return withSpan(ctx, span), span
+			ctx, span := cfg.tracer.Start(ctx, name, telemetry.SpanKindClient, append(attrs, extra...)...)
+			return telemetry.ContextWithSpan(ctx, span), span
 		}
 		return &Funcs{
 			Next: next,
@@ -327,7 +199,7 @@ func traceModel(cfg *traceConfig, extra []Attr, compacted func(context.Context) 
 				defer span.End()
 				resp, err := next.Generate(ctx, req)
 				if err != nil {
-					recordError(span, err)
+					telemetry.RecordSpanError(span, err)
 					return resp, err
 				}
 				span.SetAttributes(responseAttrs(resp)...)
@@ -346,11 +218,11 @@ func traceModel(cfg *traceConfig, extra []Attr, compacted func(context.Context) 
 					for ev, err := range next.Stream(ctx, req) {
 						switch {
 						case err != nil:
-							recordError(span, err)
+							telemetry.RecordSpanError(span, err)
 						case ev != nil && ev.Type == model.StreamDelta:
 							if first {
 								first = false
-								span.SetAttributes(Attr{"gen_ai.response.time_to_first_chunk", time.Since(began).Seconds()})
+								span.SetAttributes(telemetry.Attr{Key: "gen_ai.response.time_to_first_chunk", Value: time.Since(began).Seconds()})
 							}
 							if cfg.content {
 								acc.Add(ev)
@@ -376,153 +248,125 @@ func traceModel(cfg *traceConfig, extra []Attr, compacted func(context.Context) 
 }
 
 // requestAttrs returns the span name and attributes of a model call.
-func requestAttrs(d model.Description, req *model.Request, stream bool) (string, []Attr) {
+func requestAttrs(d model.Description, req *model.Request, stream bool) (string, []telemetry.Attr) {
 	op := cmp.Or(d.Operation, "chat")
 	name := op
-	attrs := []Attr{{"gen_ai.operation.name", op}}
+	attrs := []telemetry.Attr{{Key: "gen_ai.operation.name", Value: op}}
 	if d.Provider != "" {
-		attrs = append(attrs, Attr{"gen_ai.provider.name", d.Provider})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.provider.name", Value: d.Provider})
 	}
 	if m := cmp.Or(req.Model, d.Model); m != "" {
 		name += " " + m
-		attrs = append(attrs, Attr{"gen_ai.request.model", m})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.model", Value: m})
 	}
 	if d.ServerAddress != "" {
-		attrs = append(attrs, Attr{"server.address", d.ServerAddress}, Attr{"server.port", d.ServerPort})
+		attrs = append(attrs, telemetry.Attr{Key: "server.address", Value: d.ServerAddress}, telemetry.Attr{Key: "server.port", Value: d.ServerPort})
 	}
 	if req.MaxTokens > 0 {
-		attrs = append(attrs, Attr{"gen_ai.request.max_tokens", req.MaxTokens})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.max_tokens", Value: req.MaxTokens})
 	}
 	if req.Temperature != nil {
-		attrs = append(attrs, Attr{"gen_ai.request.temperature", *req.Temperature})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.temperature", Value: *req.Temperature})
 	}
 	if req.TopP != nil {
-		attrs = append(attrs, Attr{"gen_ai.request.top_p", *req.TopP})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.top_p", Value: *req.TopP})
 	}
 	if len(req.Stop) > 0 {
-		attrs = append(attrs, Attr{"gen_ai.request.stop_sequences", req.Stop})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.stop_sequences", Value: req.Stop})
 	}
 	if r := req.Reasoning; r != nil && r.Effort != "" {
-		attrs = append(attrs, Attr{"gen_ai.request.reasoning.level", r.Effort})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.reasoning.level", Value: r.Effort})
 	}
 	if req.ResponseFormat != nil {
-		attrs = append(attrs, Attr{"gen_ai.output.type", "json"})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.output.type", Value: "json"})
 	}
 	if stream {
 		// The conventions set this attribute only for streaming calls.
-		attrs = append(attrs, Attr{"gen_ai.request.stream", true})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.stream", Value: true})
 	}
 	return name, attrs
 }
 
-func responseAttrs(resp *model.Response) []Attr {
+func responseAttrs(resp *model.Response) []telemetry.Attr {
 	if resp == nil {
 		return nil
 	}
-	var attrs []Attr
+	var attrs []telemetry.Attr
 	if resp.ID != "" {
-		attrs = append(attrs, Attr{"gen_ai.response.id", resp.ID})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.response.id", Value: resp.ID})
 	}
 	if resp.Model != "" {
-		attrs = append(attrs, Attr{"gen_ai.response.model", resp.Model})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.response.model", Value: resp.Model})
 	}
 	reason := string(resp.FinishReason)
 	if resp.FinishReason == "" || resp.FinishReason == model.FinishUnknown {
 		// The conventions report a missing finish reason as "error".
 		reason = "error"
 	}
-	attrs = append(attrs, Attr{"gen_ai.response.finish_reasons", []string{reason}})
+	attrs = append(attrs, telemetry.Attr{Key: "gen_ai.response.finish_reasons", Value: []string{reason}})
 	return append(attrs, usageAttrs(resp.Usage)...)
 }
 
 // usageAttrs reports usage as the conventions define it: input tokens
 // include cached ones, and output tokens include reasoning.
-func usageAttrs(u model.Usage) []Attr {
-	attrs := []Attr{
-		{"gen_ai.usage.input_tokens", u.PromptTokens()},
-		{"gen_ai.usage.output_tokens", u.OutputTokens},
+func usageAttrs(u model.Usage) []telemetry.Attr {
+	attrs := []telemetry.Attr{
+		{Key: "gen_ai.usage.input_tokens", Value: u.PromptTokens()},
+		{Key: "gen_ai.usage.output_tokens", Value: u.OutputTokens},
 	}
 	if u.CacheReadTokens > 0 {
-		attrs = append(attrs, Attr{"gen_ai.usage.cache_read.input_tokens", u.CacheReadTokens})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.usage.cache_read.input_tokens", Value: u.CacheReadTokens})
 	}
 	if u.CacheWriteTokens > 0 {
-		attrs = append(attrs, Attr{"gen_ai.usage.cache_write.input_tokens", u.CacheWriteTokens})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.usage.cache_write.input_tokens", Value: u.CacheWriteTokens})
 	}
 	if u.ReasoningTokens > 0 {
-		attrs = append(attrs, Attr{"gen_ai.usage.reasoning.output_tokens", u.ReasoningTokens})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.usage.reasoning.output_tokens", Value: u.ReasoningTokens})
 	}
 	return attrs
 }
 
 // TraceTools records a span for each tool call.
-func TraceTools(t Tracer, opts ...TraceOption) tool.Middleware {
+func TraceTools(t telemetry.Tracer, opts ...TraceOption) tool.Middleware {
 	return traceTools(newTraceConfig(t, opts), nil)
 }
 
 // errToolResult marks the span of a tool that returned an error result.
 var errToolResult = errors.New("tool returned an error result")
 
-func traceTools(cfg *traceConfig, extra []Attr) tool.Middleware {
+func traceTools(cfg *traceConfig, extra []telemetry.Attr) tool.Middleware {
 	return func(next tool.Invoker) tool.Invoker {
 		return func(ctx context.Context, call *tool.Call) (*tool.Result, error) {
-			attrs := []Attr{
-				{"gen_ai.operation.name", "execute_tool"},
-				{"gen_ai.tool.name", call.Name},
-				{"gen_ai.tool.type", "function"},
+			attrs := []telemetry.Attr{
+				{Key: "gen_ai.operation.name", Value: "execute_tool"},
+				{Key: "gen_ai.tool.name", Value: call.Name},
+				{Key: "gen_ai.tool.type", Value: "function"},
 			}
 			if call.ID != "" {
-				attrs = append(attrs, Attr{"gen_ai.tool.call.id", call.ID})
+				attrs = append(attrs, telemetry.Attr{Key: "gen_ai.tool.call.id", Value: call.ID})
 			}
 			if call.Tool != nil {
 				if d := call.Tool.Info().Description; d != "" {
-					attrs = append(attrs, Attr{"gen_ai.tool.description", d})
+					attrs = append(attrs, telemetry.Attr{Key: "gen_ai.tool.description", Value: d})
 				}
 			}
 			if cfg.content {
-				attrs = append(attrs, Attr{"gen_ai.tool.call.arguments", string(call.Arguments)})
+				attrs = append(attrs, telemetry.Attr{Key: "gen_ai.tool.call.arguments", Value: string(call.Arguments)})
 			}
-			ctx, span := cfg.tracer.Start(ctx, "execute_tool "+call.Name, SpanKindInternal, append(attrs, extra...)...)
+			ctx, span := cfg.tracer.Start(ctx, "execute_tool "+call.Name, telemetry.SpanKindInternal, append(attrs, extra...)...)
 			defer span.End()
-			ctx = withSpan(ctx, span)
+			ctx = telemetry.ContextWithSpan(ctx, span)
 			res, err := next(ctx, call)
 			switch {
 			case err != nil:
-				recordError(span, err)
+				telemetry.RecordSpanError(span, err)
 			case res != nil && res.IsError:
-				span.SetAttributes(Attr{"error.type", "tool_error"})
+				span.SetAttributes(telemetry.Attr{Key: "error.type", Value: "tool_error"})
 				span.RecordError(errToolResult)
 			case res != nil && cfg.content:
-				span.SetAttributes(Attr{"gen_ai.tool.call.result", res.Content})
+				span.SetAttributes(telemetry.Attr{Key: "gen_ai.tool.call.result", Value: res.Content})
 			}
 			return res, err
 		}
 	}
-}
-
-func recordError(span Span, err error) {
-	span.SetAttributes(Attr{"error.type", ErrorType(err)})
-	span.RecordError(err)
-}
-
-// ErrorType returns the low-cardinality error.type the spans and metrics
-// of this package record for err: "timeout", "canceled", the provider's
-// error type or HTTP status code, "panic" or "_OTHER". Middleware that
-// records errors, such as retries, uses it to stay consistent.
-func ErrorType(err error) string {
-	switch {
-	case errors.Is(err, context.DeadlineExceeded):
-		return "timeout"
-	case errors.Is(err, context.Canceled):
-		return "canceled"
-	}
-	if e, ok := errors.AsType[*model.APIError](err); ok {
-		if e.Type != "" {
-			return e.Type
-		}
-		return strconv.Itoa(e.StatusCode)
-	}
-	if _, ok := errors.AsType[*tool.PanicError](err); ok {
-		return "panic"
-	}
-	return "_OTHER"
 }

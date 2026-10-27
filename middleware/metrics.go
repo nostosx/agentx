@@ -11,89 +11,9 @@ import (
 
 	"github.com/nostosx/agentx/loop"
 	"github.com/nostosx/agentx/model"
+	"github.com/nostosx/agentx/telemetry"
 	"github.com/nostosx/agentx/tool"
 )
-
-// Instrument describes a metric instrument.
-type Instrument struct {
-	Name        string
-	Description string
-	// Unit is a UCUM unit, such as "s" or "{token}".
-	Unit string
-	// Buckets are the explicit bucket boundaries the conventions advise for
-	// a histogram. Adapters may ignore them.
-	Buckets []float64
-}
-
-// Int64Counter adds to a monotonic sum.
-type Int64Counter interface {
-	Add(ctx context.Context, n int64, attrs ...Attr)
-}
-
-// Int64Histogram records a distribution of integers.
-type Int64Histogram interface {
-	Record(ctx context.Context, v int64, attrs ...Attr)
-}
-
-// Float64Histogram records a distribution of floats.
-type Float64Histogram interface {
-	Record(ctx context.Context, v float64, attrs ...Attr)
-}
-
-// Meter creates metric instruments. Adapt OpenTelemetry or another metrics
-// library to it; agentx itself has no metrics dependency. Implementations
-// and their instruments must be safe for concurrent use. The context of a
-// measurement holds the span of the measured operation, for exemplars.
-//
-// Metrics and MeterModel record these instruments of the OpenTelemetry
-// GenAI semantic conventions
-// (https://github.com/open-telemetry/semantic-conventions-genai):
-//
-//   - gen_ai.client.inference.duration (s), and for streaming calls
-//     gen_ai.client.inference.time_to_first_chunk and
-//     gen_ai.client.inference.time_per_output_chunk;
-//   - the gen_ai.client.inference.usage.input_tokens, .output_tokens,
-//     .cache_read.input_tokens, .cache_write.input_tokens and
-//     .reasoning.output_tokens counters, with gen_ai.token.modality
-//     "unknown", as providers do not break usage down by modality;
-//   - the gen_ai.client.inference.operation.input_tokens and
-//     .output_tokens histograms;
-//   - gen_ai.execute_tool.duration (s), whose count is the number of tool
-//     calls;
-//   - gen_ai.invoke_agent.duration (s), with agentx.run.status, and the
-//     gen_ai.invoke_agent.inference_calls and .tool_calls histograms, which
-//     count only a run's own calls, not those of its sub-agents.
-//
-// Model metrics carry gen_ai.operation.name, gen_ai.provider.name,
-// gen_ai.request.model, gen_ai.response.model and server.address and
-// server.port; run and tool metrics carry gen_ai.agent.name. Failed
-// operations add error.type as spans do.
-type Meter interface {
-	Int64Counter(Instrument) Int64Counter
-	Int64Histogram(Instrument) Int64Histogram
-	Float64Histogram(Instrument) Float64Histogram
-}
-
-// NoopMeter discards measurements.
-type NoopMeter struct{}
-
-// Int64Counter implements Meter.
-func (NoopMeter) Int64Counter(Instrument) Int64Counter { return noopInstrument{} }
-
-// Int64Histogram implements Meter.
-func (NoopMeter) Int64Histogram(Instrument) Int64Histogram { return noopInstrument{} }
-
-// Float64Histogram implements Meter.
-func (NoopMeter) Float64Histogram(Instrument) Float64Histogram { return noopFloat{} }
-
-type noopInstrument struct{}
-
-func (noopInstrument) Add(context.Context, int64, ...Attr)    {}
-func (noopInstrument) Record(context.Context, int64, ...Attr) {}
-
-type noopFloat struct{}
-
-func (noopFloat) Record(context.Context, float64, ...Attr) {}
 
 // Bucket boundaries advised by the conventions.
 var (
@@ -107,7 +27,7 @@ var (
 type MetricsOption func(*metricsConfig)
 
 type metricsConfig struct {
-	meter  Meter
+	meter  telemetry.Meter
 	legacy bool
 }
 
@@ -120,31 +40,31 @@ func LegacyMetrics() MetricsOption { return func(c *metricsConfig) { c.legacy = 
 
 // instruments holds the instruments of the conventions.
 type instruments struct {
-	inferenceDuration, timeToFirstChunk, timePerChunk Float64Histogram
-	inputTokens, outputTokens, cacheReadTokens        Int64Counter
-	cacheWriteTokens, reasoningTokens                 Int64Counter
-	operationInput, operationOutput                   Int64Histogram
-	toolDuration, agentDuration                       Float64Histogram
-	agentInferenceCalls, agentToolCalls               Int64Histogram
+	inferenceDuration, timeToFirstChunk, timePerChunk telemetry.Float64Histogram
+	inputTokens, outputTokens, cacheReadTokens        telemetry.Int64Counter
+	cacheWriteTokens, reasoningTokens                 telemetry.Int64Counter
+	operationInput, operationOutput                   telemetry.Int64Histogram
+	toolDuration, agentDuration                       telemetry.Float64Histogram
+	agentInferenceCalls, agentToolCalls               telemetry.Int64Histogram
 	// Legacy instruments; nil unless LegacyMetrics is set.
-	tokenUsage        Int64Histogram
-	operationDuration Float64Histogram
+	tokenUsage        telemetry.Int64Histogram
+	operationDuration telemetry.Float64Histogram
 }
 
-func newInstruments(m Meter, opts []MetricsOption) *instruments {
+func newInstruments(m telemetry.Meter, opts []MetricsOption) *instruments {
 	c := &metricsConfig{meter: m}
 	for _, opt := range opts {
 		opt(c)
 	}
 	if c.meter == nil {
-		c.meter = NoopMeter{}
+		c.meter = telemetry.NoopMeter{}
 	}
 	m = c.meter
-	seconds := func(name, desc string, buckets []float64) Float64Histogram {
-		return m.Float64Histogram(Instrument{Name: name, Description: desc, Unit: "s", Buckets: buckets})
+	seconds := func(name, desc string, buckets []float64) telemetry.Float64Histogram {
+		return m.Float64Histogram(telemetry.Instrument{Name: name, Description: desc, Unit: "s", Buckets: buckets})
 	}
-	tokens := func(name, desc string) Int64Counter {
-		return m.Int64Counter(Instrument{Name: name, Description: desc, Unit: "{token}"})
+	tokens := func(name, desc string) telemetry.Int64Counter {
+		return m.Int64Counter(telemetry.Instrument{Name: name, Description: desc, Unit: "{token}"})
 	}
 	in := &instruments{
 		inferenceDuration: seconds("gen_ai.client.inference.duration", "GenAI client inference operation duration.", durationBuckets),
@@ -155,30 +75,30 @@ func newInstruments(m Meter, opts []MetricsOption) *instruments {
 		cacheReadTokens:   tokens("gen_ai.client.inference.usage.cache_read.input_tokens", "The number of input tokens served from a provider-managed cache."),
 		cacheWriteTokens:  tokens("gen_ai.client.inference.usage.cache_write.input_tokens", "The number of input tokens written to a provider-managed cache."),
 		reasoningTokens:   tokens("gen_ai.client.inference.usage.reasoning.output_tokens", "The number of output tokens used for reasoning."),
-		operationInput: m.Int64Histogram(Instrument{Name: "gen_ai.client.inference.operation.input_tokens",
+		operationInput: m.Int64Histogram(telemetry.Instrument{Name: "gen_ai.client.inference.operation.input_tokens",
 			Description: "The number of input (prompt) tokens used per inference operation.", Unit: "{token}", Buckets: tokenBuckets}),
-		operationOutput: m.Int64Histogram(Instrument{Name: "gen_ai.client.inference.operation.output_tokens",
+		operationOutput: m.Int64Histogram(telemetry.Instrument{Name: "gen_ai.client.inference.operation.output_tokens",
 			Description: "The number of output (completion) tokens used per inference operation.", Unit: "{token}", Buckets: tokenBuckets}),
 		toolDuration:  seconds("gen_ai.execute_tool.duration", "The duration of a single tool execution.", durationBuckets),
 		agentDuration: seconds("gen_ai.invoke_agent.duration", "The end-to-end duration of a single agent invocation.", agentBuckets),
-		agentInferenceCalls: m.Int64Histogram(Instrument{Name: "gen_ai.invoke_agent.inference_calls",
+		agentInferenceCalls: m.Int64Histogram(telemetry.Instrument{Name: "gen_ai.invoke_agent.inference_calls",
 			Description: "The number of inference calls an agent makes during a single invocation.", Unit: "{inference_call}", Buckets: callBuckets}),
-		agentToolCalls: m.Int64Histogram(Instrument{Name: "gen_ai.invoke_agent.tool_calls",
+		agentToolCalls: m.Int64Histogram(telemetry.Instrument{Name: "gen_ai.invoke_agent.tool_calls",
 			Description: "The number of tool calls an agent makes during a single invocation.", Unit: "{tool_call}", Buckets: callBuckets}),
 	}
 	if c.legacy {
-		in.tokenUsage = m.Int64Histogram(Instrument{Name: "gen_ai.client.token.usage", Description: "Number of input and output tokens used.", Unit: "{token}", Buckets: tokenBuckets})
+		in.tokenUsage = m.Int64Histogram(telemetry.Instrument{Name: "gen_ai.client.token.usage", Description: "Number of input and output tokens used.", Unit: "{token}", Buckets: tokenBuckets})
 		in.operationDuration = seconds("gen_ai.client.operation.duration", "GenAI operation duration.", durationBuckets)
 	}
 	return in
 }
 
 // Metrics returns runtime middleware that records the metrics described at
-// Meter for each run and its model and tool calls.
+// telemetry.Meter for each run and its model and tool calls.
 //
 // Register it after Tracing, so measurements carry the spans, and before
 // retries, so a model call's duration includes them.
-func Metrics(m Meter, opts ...MetricsOption) loop.Middleware {
+func Metrics(m telemetry.Meter, opts ...MetricsOption) loop.Middleware {
 	return &metrics{in: newInstruments(m, opts)}
 }
 
@@ -213,9 +133,9 @@ func (mt *metrics) AfterRun(ctx context.Context, run *loop.Run, res *loop.Result
 		return
 	}
 	agent := agentAttr(run)
-	attrs := with(agent, Attr{"agentx.run.status", string(res.Status)})
+	attrs := with(agent, telemetry.Attr{Key: "agentx.run.status", Value: string(res.Status)})
 	if res.Err != nil {
-		attrs = append(attrs, Attr{"error.type", ErrorType(res.Err)})
+		attrs = append(attrs, telemetry.Attr{Key: "error.type", Value: telemetry.ErrorType(res.Err)})
 	}
 	mt.in.agentDuration.Record(ctx, time.Since(s.start).Seconds(), attrs...)
 	mt.in.agentInferenceCalls.Record(ctx, s.inference.Load(), agent...)
@@ -238,28 +158,29 @@ func (mt *metrics) WrapTool(run *loop.Run, next tool.Invoker) tool.Invoker {
 	})(next)
 }
 
-func agentAttr(run *loop.Run) []Attr {
+func agentAttr(run *loop.Run) []telemetry.Attr {
 	if run.Agent() == "" {
 		return nil
 	}
-	return []Attr{{"gen_ai.agent.name", run.Agent()}}
+	return []telemetry.Attr{{Key: "gen_ai.agent.name", Value: run.Agent()}}
 }
 
-// MeterModel records the model metrics described at Meter for each call.
-func MeterModel(m Meter, opts ...MetricsOption) Model {
+// MeterModel records the model metrics described at telemetry.Meter for each
+// call.
+func MeterModel(m telemetry.Meter, opts ...MetricsOption) Model {
 	return meterModel(newInstruments(m, opts), nil, nil)
 }
 
 // MeterTools records gen_ai.execute_tool.duration for each tool call.
-func MeterTools(m Meter, opts ...MetricsOption) tool.Middleware {
+func MeterTools(m telemetry.Meter, opts ...MetricsOption) tool.Middleware {
 	return meterTools(newInstruments(m, opts), nil, nil)
 }
 
 // meterModel measures model calls; onCall, if non-nil, runs at the start of
 // each call.
-func meterModel(in *instruments, extra []Attr, onCall func()) Model {
+func meterModel(in *instruments, extra []telemetry.Attr, onCall func()) Model {
 	return func(next model.Model) model.Model {
-		begin := func(req *model.Request) []Attr {
+		begin := func(req *model.Request) []telemetry.Attr {
 			if onCall != nil {
 				onCall()
 			}
@@ -308,39 +229,39 @@ func meterModel(in *instruments, extra []Attr, onCall func()) Model {
 }
 
 // metricAttrs returns the attributes of the model metrics of a call.
-func metricAttrs(d model.Description, req *model.Request) []Attr {
-	attrs := []Attr{{"gen_ai.operation.name", cmp.Or(d.Operation, "chat")}}
+func metricAttrs(d model.Description, req *model.Request) []telemetry.Attr {
+	attrs := []telemetry.Attr{{Key: "gen_ai.operation.name", Value: cmp.Or(d.Operation, "chat")}}
 	if d.Provider != "" {
-		attrs = append(attrs, Attr{"gen_ai.provider.name", d.Provider})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.provider.name", Value: d.Provider})
 	}
 	if m := cmp.Or(req.Model, d.Model); m != "" {
-		attrs = append(attrs, Attr{"gen_ai.request.model", m})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.model", Value: m})
 	}
 	if d.ServerAddress != "" {
-		attrs = append(attrs, Attr{"server.address", d.ServerAddress}, Attr{"server.port", d.ServerPort})
+		attrs = append(attrs, telemetry.Attr{Key: "server.address", Value: d.ServerAddress}, telemetry.Attr{Key: "server.port", Value: d.ServerPort})
 	}
 	return attrs
 }
 
 // recordInference records the duration and token usage of a model call.
 // As the conventions ask, usage is recorded for failed calls too, as zero.
-func (in *instruments) recordInference(ctx context.Context, attrs []Attr, resp *model.Response, err error, d time.Duration) {
+func (in *instruments) recordInference(ctx context.Context, attrs []telemetry.Attr, resp *model.Response, err error, d time.Duration) {
 	var u model.Usage
 	if resp != nil {
 		u = resp.Usage
 		if resp.Model != "" {
-			attrs = append(attrs, Attr{"gen_ai.response.model", resp.Model})
+			attrs = append(attrs, telemetry.Attr{Key: "gen_ai.response.model", Value: resp.Model})
 		}
 	}
 	failed := attrs
 	if err != nil {
-		failed = with(attrs, Attr{"error.type", ErrorType(err)})
+		failed = with(attrs, telemetry.Attr{Key: "error.type", Value: telemetry.ErrorType(err)})
 	}
 	in.inferenceDuration.Record(ctx, d.Seconds(), failed...)
 	in.operationInput.Record(ctx, int64(u.PromptTokens()), failed...)
 	in.operationOutput.Record(ctx, int64(u.OutputTokens), failed...)
 
-	modality := with(attrs, Attr{"gen_ai.token.modality", "unknown"})
+	modality := with(attrs, telemetry.Attr{Key: "gen_ai.token.modality", Value: "unknown"})
 	in.inputTokens.Add(ctx, int64(u.PromptTokens()), modality...)
 	in.outputTokens.Add(ctx, int64(u.OutputTokens), modality...)
 	in.cacheReadTokens.Add(ctx, int64(u.CacheReadTokens), modality...)
@@ -350,18 +271,20 @@ func (in *instruments) recordInference(ctx context.Context, attrs []Attr, resp *
 	if in.tokenUsage != nil {
 		in.operationDuration.Record(ctx, d.Seconds(), failed...)
 		if err == nil && resp != nil {
-			in.tokenUsage.Record(ctx, int64(u.PromptTokens()), with(attrs, Attr{"gen_ai.token.type", "input"})...)
-			in.tokenUsage.Record(ctx, int64(u.OutputTokens), with(attrs, Attr{"gen_ai.token.type", "output"})...)
+			in.tokenUsage.Record(ctx, int64(u.PromptTokens()), with(attrs, telemetry.Attr{Key: "gen_ai.token.type", Value: "input"})...)
+			in.tokenUsage.Record(ctx, int64(u.OutputTokens), with(attrs, telemetry.Attr{Key: "gen_ai.token.type", Value: "output"})...)
 		}
 	}
 }
 
 // with returns attrs and extra in a new slice.
-func with(attrs []Attr, extra ...Attr) []Attr { return append(slices.Clip(attrs), extra...) }
+func with(attrs []telemetry.Attr, extra ...telemetry.Attr) []telemetry.Attr {
+	return append(slices.Clip(attrs), extra...)
+}
 
 // meterTools measures tool calls; onCall, if non-nil, runs at the start of
 // each call.
-func meterTools(in *instruments, extra []Attr, onCall func()) tool.Middleware {
+func meterTools(in *instruments, extra []telemetry.Attr, onCall func()) tool.Middleware {
 	return func(next tool.Invoker) tool.Invoker {
 		return func(ctx context.Context, call *tool.Call) (*tool.Result, error) {
 			if onCall != nil {
@@ -369,12 +292,12 @@ func meterTools(in *instruments, extra []Attr, onCall func()) tool.Middleware {
 			}
 			start := time.Now()
 			res, err := next(ctx, call)
-			attrs := append([]Attr{{"gen_ai.tool.name", call.Name}, {"gen_ai.tool.type", "function"}}, extra...)
+			attrs := append([]telemetry.Attr{{Key: "gen_ai.tool.name", Value: call.Name}, {Key: "gen_ai.tool.type", Value: "function"}}, extra...)
 			switch {
 			case err != nil:
-				attrs = append(attrs, Attr{"error.type", ErrorType(err)})
+				attrs = append(attrs, telemetry.Attr{Key: "error.type", Value: telemetry.ErrorType(err)})
 			case res != nil && res.IsError:
-				attrs = append(attrs, Attr{"error.type", "tool_error"})
+				attrs = append(attrs, telemetry.Attr{Key: "error.type", Value: "tool_error"})
 			}
 			in.toolDuration.Record(ctx, time.Since(start).Seconds(), attrs...)
 			return res, err

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/nostosx/agentx/model"
+	"github.com/nostosx/agentx/telemetry"
 )
 
 // The content attributes follow the JSON schemas of the GenAI semantic
@@ -102,12 +103,12 @@ func marshalContent(v any) string {
 }
 
 // requestContent returns the opt-in content attributes of a model request.
-func requestContent(system string, msgs []*model.Message, tools []*model.ToolSpec) []Attr {
-	var attrs []Attr
+func requestContent(system string, msgs []*model.Message, tools []*model.ToolSpec) []telemetry.Attr {
+	var attrs []telemetry.Attr
 	if system != "" {
-		attrs = append(attrs, Attr{"gen_ai.system_instructions", marshalContent([]contentPart{{Type: "text", Content: &system}})})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.system_instructions", Value: marshalContent([]contentPart{{Type: "text", Content: &system}})})
 	}
-	attrs = append(attrs, Attr{"gen_ai.input.messages", marshalContent(contentMessages(msgs))})
+	attrs = append(attrs, telemetry.Attr{Key: "gen_ai.input.messages", Value: marshalContent(contentMessages(msgs))})
 	if len(tools) > 0 {
 		// The conventions advise against recording descriptions and
 		// parameters by default, as they can be large.
@@ -119,13 +120,13 @@ func requestContent(system string, msgs []*model.Message, tools []*model.ToolSpe
 		for i, t := range tools {
 			defs[i] = definition{Type: "function", Name: t.Name}
 		}
-		attrs = append(attrs, Attr{"gen_ai.tool.definitions", marshalContent(defs)})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.tool.definitions", Value: marshalContent(defs)})
 	}
 	return attrs
 }
 
 // outputContent returns gen_ai.output.messages for msg.
-func outputContent(msg *model.Message) []Attr {
+func outputContent(msg *model.Message) []telemetry.Attr {
 	if msg == nil {
 		return nil
 	}
@@ -133,5 +134,5 @@ func outputContent(msg *model.Message) []Attr {
 	if out.Role == "" {
 		out.Role = string(model.RoleAssistant)
 	}
-	return []Attr{{"gen_ai.output.messages", marshalContent([]contentMessage{out})}}
+	return []telemetry.Attr{{Key: "gen_ai.output.messages", Value: marshalContent([]contentMessage{out})}}
 }

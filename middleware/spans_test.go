@@ -15,6 +15,7 @@ import (
 	"github.com/nostosx/agentx/middleware"
 	"github.com/nostosx/agentx/model"
 	"github.com/nostosx/agentx/model/modeltest"
+	"github.com/nostosx/agentx/telemetry"
 	"github.com/nostosx/agentx/tool"
 )
 
@@ -260,15 +261,15 @@ func TestTracingNesting(t *testing.T) {
 
 func TestSpanHelpersWithoutTracing(t *testing.T) {
 	t.Parallel()
-	ctx, span := middleware.StartSpan(t.Context(), "work", middleware.SpanKindInternal)
+	ctx, span := telemetry.StartSpan(t.Context(), "work", telemetry.SpanKindInternal)
 	if ctx != t.Context() {
 		t.Error("StartSpan without a traced run changed the context")
 	}
-	span.SetAttributes(middleware.Attr{Key: "k", Value: 1})
-	middleware.RecordSpanError(span, context.Canceled)
+	span.SetAttributes(telemetry.Attr{Key: "k", Value: 1})
+	telemetry.RecordSpanError(span, context.Canceled)
 	span.End()
-	middleware.AddEvent(ctx, "nothing")
-	if middleware.SpanFromContext(ctx) == nil {
+	telemetry.AddEvent(ctx, "nothing")
+	if telemetry.SpanFromContext(ctx) == nil {
 		t.Fatal("SpanFromContext returned nil")
 	}
 	// Spans that do not record events are skipped.
@@ -277,14 +278,14 @@ func TestSpanHelpersWithoutTracing(t *testing.T) {
 	if _, err := m.Generate(t.Context(), &model.Request{}); err != nil {
 		t.Fatal(err)
 	}
-	middleware.AddEvent(t.Context(), "nothing")
+	telemetry.AddEvent(t.Context(), "nothing")
 }
 
 // plainTracer's spans do not implement EventSpan.
 type plainTracer struct{}
 
-func (plainTracer) Start(ctx context.Context, _ string, _ middleware.SpanKind, _ ...middleware.Attr) (context.Context, middleware.Span) {
-	return ctx, middleware.SpanFromContext(context.Background())
+func (plainTracer) Start(ctx context.Context, _ string, _ telemetry.SpanKind, _ ...telemetry.Attr) (context.Context, telemetry.Span) {
+	return ctx, telemetry.SpanFromContext(context.Background())
 }
 
 // TestTracingHandoffAndGuardrail traces a run that is handed off to an

@@ -13,6 +13,7 @@ import (
 	"github.com/nostosx/agentx/middleware"
 	"github.com/nostosx/agentx/model"
 	"github.com/nostosx/agentx/model/modeltest"
+	"github.com/nostosx/agentx/telemetry"
 	"github.com/nostosx/agentx/tool"
 )
 
@@ -25,12 +26,12 @@ type measurement struct {
 // recordingMeter records every measurement by instrument name.
 type recordingMeter struct {
 	mu          sync.Mutex
-	instruments map[string]middleware.Instrument
+	instruments map[string]telemetry.Instrument
 	points      map[string][]measurement
 }
 
 func newRecordingMeter() *recordingMeter {
-	return &recordingMeter{instruments: map[string]middleware.Instrument{}, points: map[string][]measurement{}}
+	return &recordingMeter{instruments: map[string]telemetry.Instrument{}, points: map[string][]measurement{}}
 }
 
 type recordingInstrument struct {
@@ -38,7 +39,7 @@ type recordingInstrument struct {
 	name string
 }
 
-func (i recordingInstrument) record(ctx context.Context, v float64, attrs []middleware.Attr) {
+func (i recordingInstrument) record(ctx context.Context, v float64, attrs []telemetry.Attr) {
 	i.m.mu.Lock()
 	defer i.m.mu.Unlock()
 	pt := measurement{value: v, attrs: map[string]any{}, ctx: ctx}
@@ -48,38 +49,38 @@ func (i recordingInstrument) record(ctx context.Context, v float64, attrs []midd
 	i.m.points[i.name] = append(i.m.points[i.name], pt)
 }
 
-func (i recordingInstrument) Add(ctx context.Context, n int64, attrs ...middleware.Attr) {
+func (i recordingInstrument) Add(ctx context.Context, n int64, attrs ...telemetry.Attr) {
 	i.record(ctx, float64(n), attrs)
 }
 
 type intHistogram struct{ recordingInstrument }
 
-func (i intHistogram) Record(ctx context.Context, v int64, attrs ...middleware.Attr) {
+func (i intHistogram) Record(ctx context.Context, v int64, attrs ...telemetry.Attr) {
 	i.record(ctx, float64(v), attrs)
 }
 
 type floatHistogram struct{ recordingInstrument }
 
-func (i floatHistogram) Record(ctx context.Context, v float64, attrs ...middleware.Attr) {
+func (i floatHistogram) Record(ctx context.Context, v float64, attrs ...telemetry.Attr) {
 	i.record(ctx, v, attrs)
 }
 
-func (m *recordingMeter) register(in middleware.Instrument) recordingInstrument {
+func (m *recordingMeter) register(in telemetry.Instrument) recordingInstrument {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.instruments[in.Name] = in
 	return recordingInstrument{m, in.Name}
 }
 
-func (m *recordingMeter) Int64Counter(in middleware.Instrument) middleware.Int64Counter {
+func (m *recordingMeter) Int64Counter(in telemetry.Instrument) telemetry.Int64Counter {
 	return m.register(in)
 }
 
-func (m *recordingMeter) Int64Histogram(in middleware.Instrument) middleware.Int64Histogram {
+func (m *recordingMeter) Int64Histogram(in telemetry.Instrument) telemetry.Int64Histogram {
 	return intHistogram{m.register(in)}
 }
 
-func (m *recordingMeter) Float64Histogram(in middleware.Instrument) middleware.Float64Histogram {
+func (m *recordingMeter) Float64Histogram(in telemetry.Instrument) telemetry.Float64Histogram {
 	return floatHistogram{m.register(in)}
 }
 
@@ -147,7 +148,7 @@ func TestMetricsAgentRun(t *testing.T) {
 	}
 	checkAttrs(t, "inference duration", final.attrs, with(map[string]any{"gen_ai.response.model": "gpt-fixture-2026", "gen_ai.agent.name": "assistant"}))
 	// The measurement's context holds the model span, for exemplars.
-	if s := middleware.SpanFromContext(final.ctx).(*recordingSpan); s.name != "chat gpt-fixture" {
+	if s := telemetry.SpanFromContext(final.ctx).(*recordingSpan); s.name != "chat gpt-fixture" {
 		t.Errorf("measurement span = %q", s.name)
 	}
 
@@ -311,7 +312,7 @@ func TestMeterTools(t *testing.T) {
 	if _, err := middleware.MeterTools(nil)(func(context.Context, *tool.Call) (*tool.Result, error) { return nil, nil })(t.Context(), &tool.Call{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := middleware.Wrap(modeltest.New(modeltest.Reply("x")), middleware.MeterModel(middleware.NoopMeter{}, middleware.LegacyMetrics())).Generate(t.Context(), &model.Request{}); err != nil {
+	if _, err := middleware.Wrap(modeltest.New(modeltest.Reply("x")), middleware.MeterModel(telemetry.NoopMeter{}, middleware.LegacyMetrics())).Generate(t.Context(), &model.Request{}); err != nil {
 		t.Fatal(err)
 	}
 }

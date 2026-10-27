@@ -1507,12 +1507,14 @@ output guardrails. A tool call then passes these steps:
 | Timeouts, truncation and other execution concerns | `WithToolMiddleware`; `loop.ToolWrapper` when the run is needed |
 | Who approves which calls | `WithApprover`, `tool.CallApprover`, `tool.Info.RequiresApproval` |
 
-The `middleware` package provides tracing and metrics. Logging
+The `middleware` package provides tracing and metrics, recorded through the
+`Tracer` and `Meter` interfaces of the `telemetry` package. Logging
 (`logging.New`) and retries with exponential backoff (`retry.New`), which
 retry only transient failures, are in the `middleware` module of
 [agentx-contrib](https://github.com/nostosx/agentx-contrib#middleware).
-`middleware.ErrorType(err)` returns the `error.type` value the tracing and
-metrics record for an error, for middleware of your own.
+`telemetry.ErrorType(err)` returns the `error.type` value the tracing and
+metrics record for an error, and `telemetry.StartSpan` adds a span to the
+current run, for middleware of your own.
 
 `middleware.Tracing` and `middleware.Metrics` follow the
 [OpenTelemetry GenAI semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai).
@@ -1545,8 +1547,8 @@ and turn (the `invoke_agent` span has no turn). Providers report their
 - **OpenTelemetry.** The core uses only the standard library and kitx; the
   `otel` module of
   [agentx-contrib](https://github.com/nostosx/agentx-contrib#opentelemetry)
-  adapts OpenTelemetry providers to `middleware.Tracer` and
-  `middleware.Meter`. For other libraries, implement the two interfaces.
+  adapts OpenTelemetry providers to `telemetry.Tracer` and
+  `telemetry.Meter`. For other libraries, implement the two interfaces.
 
 Register tracing and metrics before retries, so a model call's span and
 duration cover its retries:

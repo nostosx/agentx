@@ -12,15 +12,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nostosx/agentx/middleware"
+	"github.com/nostosx/agentx/telemetry"
 )
 
 // Span is a span recorded by Tracer while a task ran.
 type Span struct {
-	Name       string              `json:"name"`
-	Kind       middleware.SpanKind `json:"kind"`
-	Attributes map[string]any      `json:"attributes,omitempty"`
-	Start      time.Time           `json:"start"`
+	Name       string             `json:"name"`
+	Kind       telemetry.SpanKind `json:"kind"`
+	Attributes map[string]any     `json:"attributes,omitempty"`
+	Start      time.Time          `json:"start"`
 	// Duration is zero for a span that did not end.
 	Duration time.Duration `json:"duration"`
 	// Error is the text of the error recorded on the span, if any.
@@ -214,7 +214,7 @@ func spanNames(s Spans) string {
 // with agent.WithMiddleware(middleware.Tracing(eval.Tracer())), and the
 // spans of each run appear in EvaluatorContext.Spans. Outside an
 // evaluation, it discards spans.
-func Tracer() middleware.Tracer { return spanTracer{} }
+func Tracer() telemetry.Tracer { return spanTracer{} }
 
 type spanTracer struct{}
 
@@ -257,10 +257,10 @@ func cloneSpans(s Spans, parent *Span) Spans {
 	return out
 }
 
-func (spanTracer) Start(ctx context.Context, name string, kind middleware.SpanKind, attrs ...middleware.Attr) (context.Context, middleware.Span) {
+func (spanTracer) Start(ctx context.Context, name string, kind telemetry.SpanKind, attrs ...telemetry.Attr) (context.Context, telemetry.Span) {
 	col, _ := ctx.Value(collectorKey{}).(*collector)
 	if col == nil {
-		return middleware.NoopTracer{}.Start(ctx, name, kind, attrs...)
+		return telemetry.NoopTracer{}.Start(ctx, name, kind, attrs...)
 	}
 	sp := &Span{Name: name, Kind: kind, Start: time.Now(), Attributes: map[string]any{}}
 	rec := &recordingSpan{col: col, span: sp}
@@ -276,19 +276,19 @@ func (spanTracer) Start(ctx context.Context, name string, kind middleware.SpanKi
 	return context.WithValue(ctx, spanKey{}, rec), rec
 }
 
-func setAttrs(sp *Span, attrs []middleware.Attr) {
+func setAttrs(sp *Span, attrs []telemetry.Attr) {
 	for _, a := range attrs {
 		sp.Attributes[a.Key] = a.Value
 	}
 }
 
-// recordingSpan implements middleware.EventSpan.
+// recordingSpan implements telemetry.EventSpan.
 type recordingSpan struct {
 	col  *collector
 	span *Span
 }
 
-func (r *recordingSpan) SetAttributes(attrs ...middleware.Attr) {
+func (r *recordingSpan) SetAttributes(attrs ...telemetry.Attr) {
 	r.col.mu.Lock()
 	defer r.col.mu.Unlock()
 	setAttrs(r.span, attrs)
@@ -303,7 +303,7 @@ func (r *recordingSpan) RecordError(err error) {
 	r.span.Error = err.Error()
 }
 
-func (r *recordingSpan) AddEvent(name string, attrs ...middleware.Attr) {
+func (r *recordingSpan) AddEvent(name string, attrs ...telemetry.Attr) {
 	ev := SpanEvent{Name: name}
 	if len(attrs) > 0 {
 		ev.Attributes = make(map[string]any, len(attrs))

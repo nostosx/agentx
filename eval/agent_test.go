@@ -14,6 +14,7 @@ import (
 	"github.com/nostosx/agentx/middleware"
 	"github.com/nostosx/agentx/model"
 	"github.com/nostosx/agentx/model/modeltest"
+	"github.com/nostosx/agentx/telemetry"
 	"github.com/nostosx/agentx/tool"
 )
 
@@ -176,8 +177,8 @@ func TestSpanQuery(t *testing.T) {
 	}
 
 	// Outside an evaluation the tracer discards spans.
-	ctx, sp := eval.Tracer().Start(t.Context(), "x", middleware.SpanKindInternal)
-	sp.SetAttributes(middleware.Attr{Key: "k", Value: 1})
+	ctx, sp := eval.Tracer().Start(t.Context(), "x", telemetry.SpanKindInternal)
+	sp.SetAttributes(telemetry.Attr{Key: "k", Value: 1})
 	sp.RecordError(errors.New("e"))
 	sp.End()
 	if ctx != t.Context() {
@@ -191,13 +192,13 @@ func TestTracerEvents(t *testing.T) {
 	var got eval.Spans
 	task := func(ctx context.Context, _ string) (string, *loop.Result, error) {
 		tr := eval.Tracer()
-		ctx, parent := tr.Start(ctx, "parent", middleware.SpanKindInternal, middleware.Attr{Key: "a", Value: 1})
-		_, child := tr.Start(ctx, "child", middleware.SpanKindClient)
-		child.(middleware.EventSpan).AddEvent("agentx.retry", middleware.Attr{Key: "attempt", Value: 2})
-		child.(middleware.EventSpan).AddEvent("plain")
+		ctx, parent := tr.Start(ctx, "parent", telemetry.SpanKindInternal, telemetry.Attr{Key: "a", Value: 1})
+		_, child := tr.Start(ctx, "child", telemetry.SpanKindClient)
+		child.(telemetry.EventSpan).AddEvent("agentx.retry", telemetry.Attr{Key: "attempt", Value: 2})
+		child.(telemetry.EventSpan).AddEvent("plain")
 		child.RecordError(nil)
 		child.End()
-		parent.SetAttributes(middleware.Attr{Key: "b", Value: "two"})
+		parent.SetAttributes(telemetry.Attr{Key: "b", Value: "two"})
 		// parent never ends.
 		return "", nil, nil
 	}
@@ -212,7 +213,7 @@ func TestTracerEvents(t *testing.T) {
 		t.Fatalf("parent = %+v", got)
 	}
 	c := got[0].Children[0]
-	if c.Kind != middleware.SpanKindClient || c.Parent != got[0] || c.Duration <= 0 || c.Error != "" || len(c.Events) != 2 ||
+	if c.Kind != telemetry.SpanKindClient || c.Parent != got[0] || c.Duration <= 0 || c.Error != "" || len(c.Events) != 2 ||
 		c.Events[0].Attributes["attempt"] != 2 || c.Events[1].Attributes != nil {
 		t.Fatalf("child = %+v", c)
 	}

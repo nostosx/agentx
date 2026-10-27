@@ -1321,8 +1321,9 @@ Guardrail。每次工具调用依次经过：
 `middleware` 包提供链路追踪和指标。日志（`logging.New`）和只重试临时性故障的
 指数退避重试（`retry.New`）位于
 [agentx-contrib](https://github.com/nostosx/agentx-contrib/blob/main/README.zh-CN.md#中间件)
-的 `middleware` 模块。`middleware.ErrorType(err)` 返回链路追踪和指标为某个错误
-记录的 `error.type` 值，供你自己的中间件使用。
+的 `middleware` 模块。`middleware` 包通过 `telemetry` 包的 `Tracer` 和 `Meter` 接口记录
+链路追踪和指标。`telemetry.ErrorType(err)` 返回链路追踪和指标为某个错误记录的
+`error.type` 值，`telemetry.StartSpan` 为当前 run 添加 span，供你自己的中间件使用。
 
 `middleware.Tracing` 和 `middleware.Metrics` 遵循
 [OpenTelemetry GenAI 语义约定](https://github.com/open-telemetry/semantic-conventions-genai)。
@@ -1350,8 +1351,8 @@ Agent 名称和轮次（`invoke_agent` Span 没有轮次）。Provider 通过
   只有加上 `middleware.RecordContent()` 才会记录。
 - **OpenTelemetry：** 核心模块仅依赖标准库和 kitx；
   [agentx-contrib](https://github.com/nostosx/agentx-contrib/blob/main/README.zh-CN.md#opentelemetry)
-  的 `otel` 模块把 OpenTelemetry Provider 适配为 `middleware.Tracer` 和
-  `middleware.Meter`。接入其他库时，实现这两个接口即可。
+  的 `otel` 模块把 OpenTelemetry Provider 适配为 `telemetry.Tracer` 和
+  `telemetry.Meter`。接入其他库时，实现这两个接口即可。
 
 把链路追踪和指标注册在重试之前，这样模型调用的 Span 和耗时会覆盖它的
 重试：
