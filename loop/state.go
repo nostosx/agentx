@@ -47,7 +47,7 @@ func (s Status) Resumable() bool {
 }
 
 // StateVersion is the version of the State format written by this package.
-// States without a version are from before versioning and are compatible.
+// Resume accepts only states of this version.
 const StateVersion = 1
 
 // State is the resumable state of a run. It is what checkpoints store.

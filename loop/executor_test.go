@@ -357,7 +357,7 @@ func TestRuntimeApprovalRevalidationFailureClosesCall(t *testing.T) {
 
 func TestRuntimeResumeStateDoesNotMutateCaller(t *testing.T) {
 	t.Parallel()
-	st := &loop.State{RunID: "resumed", Status: loop.StatusInterrupted, Messages: []*model.Message{model.UserText("question"), model.NewMessage(model.RoleAssistant, model.Part{Type: model.PartToolCall, ToolCall: &model.ToolCall{ID: "call", Name: "echo", Arguments: json.RawMessage(`{"text":"original"}`)}})}, Pending: []*loop.PendingCall{{Call: &model.ToolCall{ID: "call", Name: "echo", Arguments: json.RawMessage(`{"text":"original"}`)}, NeedsApproval: true}}}
+	st := &loop.State{Version: loop.StateVersion, RunID: "resumed", Status: loop.StatusInterrupted, Messages: []*model.Message{model.UserText("question"), model.NewMessage(model.RoleAssistant, model.Part{Type: model.PartToolCall, ToolCall: &model.ToolCall{ID: "call", Name: "echo", Arguments: json.RawMessage(`{"text":"original"}`)}})}, Pending: []*loop.PendingCall{{Call: &model.ToolCall{ID: "call", Name: "echo", Arguments: json.RawMessage(`{"text":"original"}`)}, NeedsApproval: true}}}
 	echo := tool.Func("echo", "echo", func(_ context.Context, in echoArgs) (string, error) { return in.Text, nil })
 	r := newRuntime(t, loop.Config{Model: modeltest.New(modeltest.Reply("done")), Tools: toolRegistry(t, echo)})
 	res, err := loop.Collect(r.ResumeState(t.Context(), st, map[string]loop.Approval{"call": loop.Approve}), nil)

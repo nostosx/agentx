@@ -191,11 +191,6 @@ func (m *Manager) Prepare(ctx context.Context, instructions string, in *Input) (
 	return out, errors.Join(errs...)
 }
 
-// WrapReminder wraps text in a <system-reminder> block.
-//
-// Deprecated: Use model.WrapReminder, which this calls.
-func WrapReminder(text string) string { return model.WrapReminder(text) }
-
 // Count estimates the input size of a request.
 func (m *Manager) Count(system string, msgs []*model.Message, tools []*model.ToolSpec) int {
 	m = m.orDefault()

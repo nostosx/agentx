@@ -795,10 +795,9 @@ res, err := runner.Rewind(ctx, id, cps[len(cps)-1].ID, agent.RewindBoth)
 - **Rules.** `Rewind` returns `ErrSessionBusy` while the session runs and
   refuses a session with an interrupted run until it is resumed or
   discarded; a failed run is given up. After compaction removed a
-  checkpoint's message, only the code can be rewound to it. New checkpoints
+  checkpoint's message, only the code can be rewound to it. Checkpoints
   identify messages independently of their content, so repeated prompts
-  cannot match an older compacted checkpoint. Legacy records without stable
-  message identity cannot rewind the conversation; code rewind is unaffected.
+  cannot match an older compacted checkpoint.
 - **Session state.** Rewinding the conversation makes the agent that was
   active at the checkpoint (`Checkpoint.Agent`) active again, undoing later
   handoffs. Other session state, such as `agent.SessionState` values and

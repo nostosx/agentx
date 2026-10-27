@@ -251,6 +251,7 @@ func (r *Runtime) Run(ctx context.Context, req *Request) iter.Seq2[*Event, error
 			return
 		}
 		st := &State{
+			Version:   StateVersion,
 			RunID:     req.RunID,
 			SessionID: req.SessionID,
 			Agent:     r.cfg.Name,
@@ -329,8 +330,8 @@ func (r *Runtime) ResumeState(ctx context.Context, st *State, approvals map[stri
 
 func (r *Runtime) resume(ctx context.Context, st *State, approvals map[string]Approval, yield func(*Event, error) bool) {
 	switch {
-	case st.Version > StateVersion:
-		yield(nil, fmt.Errorf("loop: run %s has state version %d; this version supports up to %d", st.RunID, st.Version, StateVersion))
+	case st.Version != StateVersion:
+		yield(nil, fmt.Errorf("loop: run %s has state version %d; this version supports %d", st.RunID, st.Version, StateVersion))
 		return
 	case !st.Status.Resumable():
 		yield(nil, fmt.Errorf("loop: run %s is %s and cannot be resumed", st.RunID, st.Status))

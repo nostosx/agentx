@@ -180,7 +180,7 @@ func TestCommandTimeoutDefaults(t *testing.T) {
 
 func TestParseCommandOutput(t *testing.T) {
 	t.Parallel()
-	res, err := parseCommandOutput(PreToolUse, []byte(`{"decision":"allow","reason":"top","additionalContext":"one","continue":false,"stopReason":"stop","systemMessage":"careful","suppressOutput":true,"hookSpecificOutput":{"permissionDecision":"block","permissionDecisionReason":"specific","additionalContext":"two","updatedInput":{"x":2},"updatedOutput":"replacement"}}`))
+	res, err := parseCommandOutput(PreToolUse, []byte(`{"decision":"allow","reason":"top","additionalContext":"one","continue":false,"stopReason":"stop","systemMessage":"careful","suppressOutput":true,"hookSpecificOutput":{"permissionDecision":"block","permissionDecisionReason":"specific","additionalContext":"two","updatedInput":{"x":2},"updatedToolOutput":"replacement"}}`))
 	if err != nil || res.Decision != Deny || res.Reason != "specific" || res.AdditionalContext != "one\ntwo" || !res.Halt || res.HaltReason != "stop" || res.SystemMessage != "careful" || string(res.UpdatedInput) != `{"x":2}` || res.UpdatedOutput == nil || *res.UpdatedOutput != "replacement" {
 		t.Fatalf("parsed=%+v,%v", res, err)
 	}
@@ -218,9 +218,9 @@ func TestParseCommandOutputUpdatedToolOutput(t *testing.T) {
 		{"mismatched shape ignored", `"updatedToolOutput":{"stdout":"new"}`, nil},
 		{"null ignored", `"updatedToolOutput":null`, nil},
 		{"mcp", `"updatedMCPToolOutput":"mcp"`, new("mcp")},
-		{"deprecated alias", `"updatedOutput":"old"`, new("old")},
-		{"precedence", `"updatedOutput":"old","updatedMCPToolOutput":"mcp","updatedToolOutput":"new"`, new("new")},
-		{"mismatch keeps alias", `"updatedOutput":"old","updatedToolOutput":[1]`, new("old")},
+		{"removed agentx name ignored", `"updatedOutput":"old"`, nil},
+		{"precedence", `"updatedMCPToolOutput":"mcp","updatedToolOutput":"new"`, new("new")},
+		{"mismatch keeps mcp", `"updatedMCPToolOutput":"mcp","updatedToolOutput":[1]`, new("mcp")},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()

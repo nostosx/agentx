@@ -414,49 +414,37 @@ func TestRunnerCheckpointsRepeatedPromptAfterCompaction(t *testing.T) {
 
 func TestRunnerRewindRequiresUniqueMessageIdentity(t *testing.T) {
 	t.Parallel()
-	for _, name := range []string{"legacy", "duplicate identity"} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			dir := t.TempDir()
-			r, _ := coder(t, dir, nil, modeltest.New(writeStep("a.txt", "v"), modeltest.Reply("done")))
-			res, err := r.RunText(t.Context(), "s", "write")
-			if err != nil {
-				t.Fatal(err)
-			}
-			sess, err := r.Store().Get(t.Context(), "s")
-			if err != nil {
-				t.Fatal(err)
-			}
-			msgs := sess.Messages()
-			if name == "legacy" {
-				// Old records have only a content hash and position, neither
-				// of which can distinguish a removed repeated prompt.
-				sess.State().Set(agent.CheckpointsKey, []map[string]any{{"id": res.RunID, "index": 0, "hash": "legacy"}})
-				delete(msgs[0].Metadata, "agentx.checkpoint")
-			} else {
-				msgs = append(msgs, msgs[0].Clone())
-			}
-			sess.Replace(msgs)
-			if err := r.Store().Save(t.Context(), sess); err != nil {
-				t.Fatal(err)
-			}
-			cps, err := r.Checkpoints(t.Context(), "s")
-			if err != nil || len(cps) != 1 || cps[0].Index != -1 || cps[0].Message != nil || !cps[0].Code {
-				t.Fatalf("Checkpoints = %+v, %v", cps, err)
-			}
-			if _, err := r.Rewind(t.Context(), "s", res.RunID, agent.RewindBoth); !errors.Is(err, agent.ErrCannotRewind) {
-				t.Fatalf("ambiguous conversation rewind = %v", err)
-			}
-			if messageCount(t, r, "s") != len(msgs) || len(files(t, dir)) != 1 {
-				t.Fatal("refused rewind changed the session or files")
-			}
-			if _, err := r.Rewind(t.Context(), "s", res.RunID, agent.RewindCode); err != nil {
-				t.Fatal(err)
-			}
-			if messageCount(t, r, "s") != len(msgs) || len(files(t, dir)) != 0 {
-				t.Fatal("code rewind did not preserve the conversation and restore files")
-			}
-		})
+	dir := t.TempDir()
+	r, _ := coder(t, dir, nil, modeltest.New(writeStep("a.txt", "v"), modeltest.Reply("done")))
+	res, err := r.RunText(t.Context(), "s", "write")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := r.Store().Get(t.Context(), "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgs := sess.Messages()
+	msgs = append(msgs, msgs[0].Clone())
+	sess.Replace(msgs)
+	if err := r.Store().Save(t.Context(), sess); err != nil {
+		t.Fatal(err)
+	}
+	cps, err := r.Checkpoints(t.Context(), "s")
+	if err != nil || len(cps) != 1 || cps[0].Index != -1 || cps[0].Message != nil || !cps[0].Code {
+		t.Fatalf("Checkpoints = %+v, %v", cps, err)
+	}
+	if _, err := r.Rewind(t.Context(), "s", res.RunID, agent.RewindBoth); !errors.Is(err, agent.ErrCannotRewind) {
+		t.Fatalf("ambiguous conversation rewind = %v", err)
+	}
+	if messageCount(t, r, "s") != len(msgs) || len(files(t, dir)) != 1 {
+		t.Fatal("refused rewind changed the session or files")
+	}
+	if _, err := r.Rewind(t.Context(), "s", res.RunID, agent.RewindCode); err != nil {
+		t.Fatal(err)
+	}
+	if messageCount(t, r, "s") != len(msgs) || len(files(t, dir)) != 0 {
+		t.Fatal("code rewind did not preserve the conversation and restore files")
 	}
 }
 

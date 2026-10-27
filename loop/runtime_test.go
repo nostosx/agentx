@@ -95,6 +95,13 @@ func TestRuntimeInvalidRequests(t *testing.T) {
 			t.Fatal("ResumeState accepted non-interrupted state")
 		}
 	}
+	// Only states of the current format resume.
+	for _, v := range []int{0, loop.StateVersion + 1} {
+		st := &loop.State{Version: v, RunID: "run", Status: loop.StatusInterrupted}
+		if _, err := loop.Collect(r.ResumeState(t.Context(), st, nil), nil); err == nil || !strings.Contains(err.Error(), "state version") {
+			t.Errorf("ResumeState of version %d = %v, want a state version error", v, err)
+		}
+	}
 }
 
 func TestRuntimeConsumerStops(t *testing.T) {

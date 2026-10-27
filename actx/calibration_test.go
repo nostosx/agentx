@@ -8,16 +8,6 @@ import (
 	"github.com/nostosx/agentx/model"
 )
 
-func TestWrapReminderAlias(t *testing.T) {
-	t.Parallel()
-	for _, text := range []string{"", "recall\nmore"} {
-		want := "<system-reminder>\n" + text + "\n</system-reminder>"
-		if got := actx.WrapReminder(text); got != want || got != model.WrapReminder(text) {
-			t.Errorf("WrapReminder(%q) = %q, want %q", text, got, want)
-		}
-	}
-}
-
 // TestCompactCounterIsCalibrated checks that strategies count with the
 // manager's calibration, so their estimates match the target they get.
 func TestCompactCounterIsCalibrated(t *testing.T) {

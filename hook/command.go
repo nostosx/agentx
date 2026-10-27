@@ -52,8 +52,7 @@ import (
 // hookSpecificOutput with permissionDecision, permissionDecisionReason,
 // additionalContext, updatedInput and updatedToolOutput. updatedToolOutput
 // must be a string or an object with a string "content" field; other
-// values are ignored. updatedMCPToolOutput and the deprecated
-// updatedOutput are accepted in its place. suppressOutput has no effect,
+// values are ignored. updatedMCPToolOutput is accepted in its place. suppressOutput has no effect,
 // as in Claude Code. A "defer" decision drops updatedInput and
 // additionalContext. Notification, PreCompact and PostCompact ignore
 // continue and systemMessage.
@@ -302,8 +301,6 @@ type specificOutput struct {
 	UpdatedInput             json.RawMessage `json:"updatedInput"`
 	UpdatedToolOutput        json.RawMessage `json:"updatedToolOutput"`
 	UpdatedMCPToolOutput     json.RawMessage `json:"updatedMCPToolOutput"`
-	// UpdatedOutput is the deprecated agentx name of UpdatedToolOutput.
-	UpdatedOutput *string `json:"updatedOutput"`
 }
 
 // isJSONObject reports whether stdout looks like a JSON object.
@@ -351,7 +348,6 @@ func parseCommandOutput(event EventType, stdout []byte) (*Result, error) {
 		if len(so.UpdatedInput) > 0 && string(so.UpdatedInput) != "null" {
 			res.UpdatedInput = so.UpdatedInput
 		}
-		res.UpdatedOutput = so.UpdatedOutput
 		if text, ok := toolOutputText(so.UpdatedMCPToolOutput); ok {
 			res.UpdatedOutput = &text
 		}

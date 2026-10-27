@@ -111,8 +111,7 @@ const checkpointMessageKey = "agentx.checkpoint"
 type checkpointRecord struct {
 	ID string `json:"id"`
 	// Message is the caller's original input before context providers and
-	// middleware augment it. A nil Message marks a legacy record without
-	// stable message identity, which cannot rewind the conversation safely.
+	// middleware augment it.
 	Message *model.Message `json:"message,omitempty"`
 	Time    time.Time      `json:"time"`
 	// Agent is the active agent when the run started; see
@@ -179,13 +178,10 @@ func checkpointsOf(sess session.Session) []checkpointRecord {
 }
 
 // findMessage returns the unique position of a checkpoint's user message
-// in msgs, or -1 if it was removed, its identity was duplicated, or the
-// record predates stable message identity. Content cannot identify a prompt:
-// repeated prompts and compaction summaries may have identical content.
+// in msgs, or -1 if it was removed or its identity was duplicated. Content
+// cannot identify a prompt: repeated prompts and compaction summaries may
+// have identical content.
 func findMessage(msgs []*model.Message, rec checkpointRecord) int {
-	if rec.Message == nil {
-		return -1
-	}
 	index := -1
 	for i, msg := range msgs {
 		if msg == nil || msg.Role != model.RoleUser || msg.Metadata[checkpointMessageKey] != rec.ID {

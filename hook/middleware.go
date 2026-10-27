@@ -14,7 +14,7 @@ import (
 // Run state keys used by the middleware.
 const (
 	// stopActiveKey counts the consecutive continuations Stop hooks
-	// caused. Older checkpoints may hold "true" for one.
+	// caused.
 	stopActiveKey = "hook.stop_active"
 	// stopContinuedKey is set once Stop hooks continued the run.
 	stopContinuedKey = "hook.stop_continued"
@@ -196,8 +196,8 @@ func stopBlocks(run *loop.Run) int {
 		return 0
 	}
 	n, err := strconv.Atoi(v)
-	if err != nil || n < 1 {
-		return 1
+	if err != nil || n < 0 {
+		return 0
 	}
 	return n
 }

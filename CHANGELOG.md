@@ -7,6 +7,24 @@ workflow uses each version section as its release notes.
 
 Go 1.27.3 is the toolchain requirement, independent of the library version.
 
+## Unreleased
+
+### Breaking changes
+
+Compatibility with data and APIs of earlier releases is removed:
+
+- `actx.WrapReminder` is removed; use `model.WrapReminder`.
+- Command hooks no longer accept the `updatedOutput` field of
+  `hookSpecificOutput`; return `updatedToolOutput` (or
+  `updatedMCPToolOutput`).
+- The Stop hook continuation counter no longer reads the `"true"` value that
+  checkpoints of earlier releases stored; such a value counts as zero.
+- `Runtime.Resume` and `ResumeState` accept only states of the current
+  `loop.StateVersion`; states without a version are rejected. New in-memory
+  states carry the version from the start.
+- Rewind checkpoint records without a stored message are no longer
+  recognized as legacy records.
+
 ## v1.1.0
 
 Release date: 2026-10-27.

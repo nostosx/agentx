@@ -695,9 +695,8 @@ res, err := runner.Rewind(ctx, id, cps[len(cps)-1].ID, agent.RewindBoth)
   `RewindResult.Undo`，用 `History.Restore` 恢复它即可撤销回退。
 - **规则**：会话运行期间 `Rewind` 返回 `ErrSessionBusy`；会话有中断的运行时
   拒绝回退，直到该运行被恢复或丢弃；失败的运行会被放弃。压缩删掉检查点的消息
-  之后，只能回退到该检查点的代码。新检查点通过独立于内容的标识定位消息，
-  重复提问不会误匹配已被压缩的旧检查点。没有稳定消息标识的旧记录不能回退
-  对话，代码回退不受影响。
+  之后，只能回退到该检查点的代码。检查点通过独立于内容的标识定位消息，
+  重复提问不会误匹配已被压缩的旧检查点。
 - **会话状态**：回退对话会让检查点时的当前 Agent（`Checkpoint.Agent`）重新
   成为当前 Agent，撤销之后的 Handoff。其他会话状态，例如 `agent.SessionState`
   的值和记住的权限授权，不会回退；Claude Code 回退时同样保留权限。
