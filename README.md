@@ -1476,18 +1476,17 @@ any of these stages:
 #### Tool call pipeline
 
 `agent.New` registers its middleware in this order: input guardrails, hooks,
-skills, the `WithMiddleware` and `WithPermissions` middleware in the order
-those options are given, handoffs, context engineering, and finally tool and
-output guardrails. A tool call then passes these steps:
+skills, `WithMiddleware` middleware in the order given, the `WithPermissions`
+policy, handoffs, context engineering, and finally tool and output
+guardrails. A tool call then passes these steps:
 
 1. **BeforeTool:** `PreToolUse` hooks, an active skill's allowed and
-   disallowed tools, `WithMiddleware`/`WithPermissions` middleware, the
+   disallowed tools, `WithMiddleware` middleware, the permission policy, the
    handoff check and tool input guardrails. The most restrictive decision
    wins in any order: a hook's allow does not lift a permission ask or deny.
    The first denial skips the remaining stages; a tripped tool input
-   guardrail ends the run. A permission policy also sees the decision so far,
-   which matters in `dontAsk` mode, so register deciding middleware before
-   `WithPermissions`.
+   guardrail ends the run. The permission policy also sees the decision so
+   far, which matters in `dontAsk` mode.
 2. **Approval** when a stage asked, or no stage decided and the tool requires
    approval. Allowed calls skip it.
 3. **RevalidateTool** when an approval edited the arguments. Hooks do not run
@@ -1495,8 +1494,9 @@ output guardrails. A tool call then passes these steps:
 4. **Execution:** schema validation, then `WrapTool` middleware (first
    outermost, tool output guardrails innermost), then `WithToolMiddleware`
    (first outermost), then the tool.
-5. **AfterTool** in reverse: guardrails, `WithMiddleware`/`WithPermissions`
-   middleware, skills, then `PostToolUse` hooks. Denied calls fire no hooks.
+5. **AfterTool** in reverse: guardrails, the permission policy,
+   `WithMiddleware` middleware, skills, then `PostToolUse` hooks. Denied calls
+   fire no hooks.
 
 | Purpose | Use |
 | --- | --- |

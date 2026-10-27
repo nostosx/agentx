@@ -135,6 +135,7 @@ func forkAgent(parent Config, base Agent, name, modelName string) (Agent, error)
 			Logger:          parent.Logger,
 			Limits:          parent.Limits,
 			Middlewares:     policies,
+			Permissions:     parent.Permissions,
 			Guardrails:      guard.Config{Tool: parent.Guardrails.Tool},
 			SkillConfig: skill.Config{
 				ProjectDir: parent.SkillConfig.ProjectDir,

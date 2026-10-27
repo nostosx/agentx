@@ -214,14 +214,12 @@ func WithMaxDepth(n int) Option { return func(c *Config) { c.MaxDepth = n } }
 
 // WithPermissions decides tool calls with a permission policy: rules and
 // modes in Claude Code's syntax, see the permission package. The policy
-// runs as middleware after the hooks, so its deny and ask decisions hold
-// whatever a PreToolUse hook allows.
+// runs after the hooks, skills and WithMiddleware middleware, whatever the
+// order of the options, so its deny and ask decisions hold whatever they
+// allow; see the package documentation. A later WithPermissions replaces
+// the policy, and nil removes it.
 func WithPermissions(p *permission.Policy) Option {
-	return func(c *Config) {
-		if p != nil {
-			c.Middlewares = append(c.Middlewares, p)
-		}
-	}
+	return func(c *Config) { c.Permissions = p }
 }
 
 // WithSkillConfig configures how the agent's skills run, for example

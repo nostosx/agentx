@@ -4,21 +4,20 @@
 // # Tool call pipeline
 //
 // New installs its loop middleware in this order: input guardrails, hooks
-// (WithHooks), skills (WithSkills), the middleware of WithMiddleware and
-// WithPermissions in the order those options are given, handoffs, context
+// (WithHooks), skills (WithSkills), the middleware of WithMiddleware in the
+// order given, the permission policy (WithPermissions), handoffs, context
 // engineering, and finally tool and output guardrails. Each tool call the
 // model requests then passes through these steps:
 //
 //  1. BeforeTool, in that order: PreToolUse hooks, the allowed and
-//     disallowed tools of an active skill, the WithMiddleware and
-//     WithPermissions middleware, the handoff check, and tool input
-//     guardrails. Each stage sees the arguments as earlier stages rewrote
-//     them and may allow the call, ask for approval or deny it. The most
-//     restrictive decision wins whatever the order, so a hook that allows a
-//     call does not lift a permission rule's ask or deny, and the first
-//     denial skips the remaining stages. A permission.Policy also receives
-//     the decision so far, which changes its result in dontAsk mode;
-//     register middleware that decides calls before WithPermissions. A tool
+//     disallowed tools of an active skill, the WithMiddleware middleware,
+//     the permission policy, the handoff check, and tool input guardrails.
+//     Each stage sees the arguments as earlier stages rewrote them and may
+//     allow the call, ask for approval or deny it. The most restrictive
+//     decision wins whatever the order, so a hook that allows a call does
+//     not lift a permission rule's ask or deny, and the first denial skips
+//     the remaining stages. The permission policy also receives the
+//     decision so far, which changes its result in dontAsk mode. A tool
 //     input guardrail that trips ends the run instead of denying the call.
 //  2. Approval, when a stage asked, or when no stage decided and the tool
 //     requires approval (tool.Info.RequiresApproval, per call for a
@@ -36,9 +35,9 @@
 //     WithToolMiddleware, the first outermost, and then the tool.
 //  5. AfterTool, in reverse order: the guardrails first, which end the run
 //     if a tool output guardrail tripped during execution, then the
-//     WithMiddleware and WithPermissions middleware, skills, and PostToolUse
-//     or PostToolUseFailure hooks last. Denied calls pass AfterTool too, but
-//     fire no hooks.
+//     permission policy, the WithMiddleware middleware, skills, and
+//     PostToolUse or PostToolUseFailure hooks last. Denied calls pass
+//     AfterTool too, but fire no hooks.
 //
 // Choose the mechanism by purpose:
 //
@@ -233,14 +232,24 @@ func build(cfg Config) (*LLMAgent, error) {
 		first, guardLast = guard.Middleware(cfg.Guardrails)
 		mws = append(mws, first)
 	}
+	if cfg.Permissions != nil && slices.ContainsFunc(cfg.Middlewares, func(mw loop.Middleware) bool { return mw == cfg.Permissions }) {
+		return nil, fmt.Errorf("agent %s: the permission policy is also among the middlewares; pass it with WithPermissions only", name)
+	}
 	if hooks != nil {
-		// Hooks receive the permission mode of a policy such as
-		// permission.Policy, as Claude Code's permission_mode.
+		// Hooks receive the permission mode of the policy, or else of a
+		// policy-like middleware, as Claude Code's permission_mode.
+		var pm interface{ PermissionMode(*loop.Run) string }
+		if cfg.Permissions != nil {
+			pm = cfg.Permissions
+		}
 		for _, mw := range cfg.Middlewares {
-			if pm, ok := mw.(interface{ PermissionMode(*loop.Run) string }); ok {
-				hooks.SetPermissionMode(pm.PermissionMode)
+			if pm != nil {
 				break
 			}
+			pm, _ = mw.(interface{ PermissionMode(*loop.Run) string })
+		}
+		if pm != nil {
+			hooks.SetPermissionMode(pm.PermissionMode)
 		}
 		mws = append(mws, hook.Middleware(hooks))
 	}
@@ -248,6 +257,9 @@ func build(cfg Config) (*LLMAgent, error) {
 		mws = append(mws, skills.Middleware())
 	}
 	mws = append(mws, cfg.Middlewares...)
+	if cfg.Permissions != nil {
+		mws = append(mws, cfg.Permissions)
+	}
 	// Any agent may be handed off to, so it applies handoff input filters.
 	mws = append(mws, &agentMiddleware{cfg: &cfg})
 	mws = append(mws, actx.Middleware(actx.NewManager(ccfg),

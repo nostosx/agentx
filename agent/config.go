@@ -8,6 +8,7 @@ import (
 	"github.com/nostosx/agentx/hook"
 	"github.com/nostosx/agentx/loop"
 	"github.com/nostosx/agentx/memory"
+	"github.com/nostosx/agentx/permission"
 	"github.com/nostosx/agentx/skill"
 	"github.com/nostosx/agentx/tool"
 	"github.com/nostosx/agentx/tool/builtin"
@@ -56,9 +57,14 @@ type Config struct {
 	SubAgents []Agent
 
 	Hooks *hook.Manager
-	// Middlewares extend the agent loop. They run after the hook middleware
-	// and before the context middleware.
+	// Middlewares extend the agent loop. They run after the hook and skill
+	// middleware and before the permission policy and the context
+	// middleware.
 	Middlewares []loop.Middleware
+	// Permissions decides tool calls with rules and modes; see
+	// WithPermissions. It runs after Middlewares, so it sees their
+	// decisions.
+	Permissions *permission.Policy
 	// Context configures context engineering. The agent adds its own
 	// providers for skills and memory.
 	Context          actx.Config

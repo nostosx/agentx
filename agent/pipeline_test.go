@@ -3,7 +3,9 @@ package agent_test
 import (
 	"context"
 	"slices"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/nostosx/agentx/agent"
@@ -12,6 +14,7 @@ import (
 	"github.com/nostosx/agentx/loop"
 	"github.com/nostosx/agentx/model"
 	"github.com/nostosx/agentx/model/modeltest"
+	"github.com/nostosx/agentx/permission"
 	"github.com/nostosx/agentx/tool"
 )
 
@@ -140,5 +143,65 @@ func TestToolCallPipelineDenial(t *testing.T) {
 	}
 	if len(results) != 1 || !results[0].IsError || results[0].Content != "denied by deny" {
 		t.Errorf("tool results = %+v", results)
+	}
+}
+
+// The permission policy runs after WithMiddleware middleware whatever the
+// order of the options: in dontAsk mode a call a middleware allowed runs,
+// although the policy alone would deny it for needing approval.
+func TestPermissionsRunAfterMiddleware(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		allow bool
+		calls int32
+	}{
+		{"middleware allows", true, 1},
+		{"no middleware decision", false, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var calls atomic.Int32
+			danger := tool.Func("danger", "", func(context.Context, struct{}) (string, error) {
+				calls.Add(1)
+				return "done", nil
+			}, tool.RequireApproval())
+			allow := &loop.Funcs{MiddlewareName: "allow", BeforeToolFunc: func(_ context.Context, _ *loop.Run, plan *loop.ToolPlan) error {
+				if tc.allow {
+					plan.Allow()
+				}
+				return nil
+			}}
+			policy := permission.MustNew(permission.Config{Mode: permission.ModeDontAsk, Dir: t.TempDir()})
+			a := agent.MustNew("assistant",
+				agent.WithModel(modeltest.New(modeltest.CallTools(modeltest.Call{ID: "c", Name: "danger"}), modeltest.Reply("done"))),
+				agent.WithTools(danger), agent.WithPermissions(policy), agent.WithMiddleware(allow))
+			res, err := loop.Collect(a.Run(t.Context(), agent.Text("q")), nil)
+			if err != nil || res.Status != loop.StatusCompleted || calls.Load() != tc.calls {
+				t.Fatalf("run = %+v, %v; calls = %d, want %d", res, err, calls.Load(), tc.calls)
+			}
+		})
+	}
+}
+
+func TestPermissionsOption(t *testing.T) {
+	t.Parallel()
+	policy := permission.MustNew(permission.Config{Dir: t.TempDir()})
+	m := modeltest.New()
+	if _, err := agent.New("a", agent.WithModel(m), agent.WithPermissions(policy), agent.WithMiddleware(policy)); err == nil ||
+		!strings.Contains(err.Error(), "WithPermissions only") {
+		t.Errorf("policy passed twice: %v", err)
+	}
+	// A later WithPermissions(nil) removes a policy that denies the tool.
+	var calls atomic.Int32
+	echo := tool.Func("echo", "", func(context.Context, struct{}) (string, error) {
+		calls.Add(1)
+		return "ok", nil
+	})
+	deny := permission.MustNew(permission.Config{Dir: t.TempDir(), Rules: []permission.Rules{{Deny: []string{"echo"}}}})
+	a := agent.MustNew("a", agent.WithModel(modeltest.New(modeltest.CallTools(modeltest.Call{ID: "c", Name: "echo"}), modeltest.Reply("done"))),
+		agent.WithTools(echo), agent.WithPermissions(deny), agent.WithPermissions(nil))
+	if res, err := loop.Collect(a.Run(t.Context(), agent.Text("q")), nil); err != nil || res.Output != "done" || calls.Load() != 1 {
+		t.Errorf("run = %+v, %v; calls = %d", res, err, calls.Load())
 	}
 }

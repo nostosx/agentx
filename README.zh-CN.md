@@ -1293,21 +1293,20 @@ runtime 中间件的形式接入。Hook 和上下文工程也是中间件，`age
 
 #### 工具调用流水线
 
-`agent.New` 按以下顺序注册中间件：输入 Guardrail、Hook、Skill、按选项传入顺序排列的
-`WithMiddleware` 与 `WithPermissions` 中间件、Handoff、上下文工程，最后是工具与输出
-Guardrail。每次工具调用依次经过：
+`agent.New` 按以下顺序注册中间件：输入 Guardrail、Hook、Skill、按传入顺序排列的
+`WithMiddleware` 中间件、`WithPermissions` 权限策略、Handoff、上下文工程，最后是工具与
+输出 Guardrail。每次工具调用依次经过：
 
-1. **BeforeTool：** `PreToolUse` Hook、当前 Skill 的允许与禁用工具、
-   `WithMiddleware`/`WithPermissions` 中间件、Handoff 检查和工具输入 Guardrail。
-   无论顺序如何，最严格的决定生效：Hook 的允许不能解除权限规则的询问或拒绝。首个拒绝
-   会跳过后续阶段；工具输入 Guardrail 触发时结束 run。权限策略还会读取此前的决定，
-   这在 `dontAsk` 模式下会影响结果，因此作出决定的中间件应在 `WithPermissions` 之前注册。
+1. **BeforeTool：** `PreToolUse` Hook、当前 Skill 的允许与禁用工具、`WithMiddleware`
+   中间件、权限策略、Handoff 检查和工具输入 Guardrail。无论顺序如何，最严格的决定
+   生效：Hook 的允许不能解除权限规则的询问或拒绝。首个拒绝会跳过后续阶段；工具输入
+   Guardrail 触发时结束 run。权限策略还会读取此前的决定，这在 `dontAsk` 模式下会影响结果。
 2. **审批：** 有阶段要求审批，或没有阶段作出决定且工具需要审批时进行；已允许的调用跳过审批。
 3. **RevalidateTool：** 审批修改了参数时执行，Hook 不会重复执行。
 4. **执行：** 先按 Schema 校验参数，再经过 `WrapTool` 中间件（先注册的在最外层，
    工具输出 Guardrail 在最内层）、`WithToolMiddleware`（先注册的在最外层），最后调用工具。
-5. **AfterTool：** 倒序执行：Guardrail、`WithMiddleware`/`WithPermissions` 中间件、
-   Skill，最后是 `PostToolUse` Hook。被拒绝的调用不会触发 Hook。
+5. **AfterTool：** 倒序执行：Guardrail、权限策略、`WithMiddleware` 中间件、Skill，
+   最后是 `PostToolUse` Hook。被拒绝的调用不会触发 Hook。
 
 | 用途 | 机制 |
 | --- | --- |
