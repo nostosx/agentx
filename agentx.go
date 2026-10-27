@@ -38,4 +38,4 @@ package agentx
 
 // Version is the framework version reported to remote services such as MCP
 // servers.
-const Version = "1.1.0"
+const Version = "1.2.0"

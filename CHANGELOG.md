@@ -7,7 +7,12 @@ workflow uses each version section as its release notes.
 
 Go 1.27.3 is the toolchain requirement, independent of the library version.
 
-## Unreleased
+## v1.2.0
+
+Release date: 2026-10-27.
+
+agentx-contrib modules and agentx-examples keep working with this release
+without changes.
 
 ### Breaking changes
 

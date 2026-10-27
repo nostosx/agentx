@@ -14,7 +14,7 @@ agentx 是一个 Go Agent 框架，用于调用工具、维护对话和恢复被
 - **迭代器流式**：运行过程是 `iter.Seq2[*loop.Event, error]`，模型流是
   `iter.Seq2[*model.StreamEvent, error]`，用普通的 `for range` 就能读取。
 
-> 需要 Go 1.27.3 或更高版本，当前版本为 v1.1.0。
+> 需要 Go 1.27.3 或更高版本，当前版本为 v1.2.0。
 > 补丁版本保持公开 API 兼容；次版本可能包含破坏性改动，每项改动及其迁移方式见
 > [CHANGELOG.md](CHANGELOG.md)。
 
@@ -33,7 +33,7 @@ go mod init example.com/agentx-demo
 ```
 
 ```sh
-go get github.com/nostosx/agentx@v1.1.0 github.com/nostosx/agentx-contrib/provider@v1.1.0
+go get github.com/nostosx/agentx@v1.2.0 github.com/nostosx/agentx-contrib/provider@v1.1.0
 ```
 
 核心模块定义 `model.Model`；OpenAI、Anthropic、Gemini 和 Bedrock 的实现位于
