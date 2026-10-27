@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	goruntime "runtime"
@@ -742,5 +743,15 @@ func TestFileHistoryStoreFailureCleansUp(t *testing.T) {
 	entries, err := os.ReadDir(filepath.Dir(target))
 	if err != nil || len(entries) != 1 || entries[0].Name() != "occupied.json" {
 		t.Fatalf("temporary files leaked: %v, %v", entries, err)
+	}
+}
+
+// A missing file history checkpoint matches loop.ErrCheckpointNotFound,
+// but a missing agent run checkpoint does not match the file history error.
+func TestHistoryCheckpointNotFoundWrapsLoop(t *testing.T) {
+	missing := fmt.Errorf("rewind: %w", ErrCheckpointNotFound)
+	runMissing := fmt.Errorf("resume: %w", loop.ErrCheckpointNotFound)
+	if !errors.Is(missing, loop.ErrCheckpointNotFound) || errors.Is(runMissing, ErrCheckpointNotFound) {
+		t.Error("builtin.ErrCheckpointNotFound must wrap loop.ErrCheckpointNotFound, not the other way round")
 	}
 }

@@ -66,9 +66,11 @@ type History interface {
 	Delete(ctx context.Context, sessionID string) error
 }
 
-// ErrCheckpointNotFound is returned for a checkpoint that does not exist
-// or is no longer kept.
-var ErrCheckpointNotFound = errors.New("checkpoint not found")
+// ErrCheckpointNotFound is returned for a file history checkpoint that
+// does not exist or is no longer kept. It wraps loop.ErrCheckpointNotFound,
+// so errors.Is matches either: check this error for file history only, or
+// loop's for any checkpoint.
+var ErrCheckpointNotFound = fmt.Errorf("file history: %w", loop.ErrCheckpointNotFound)
 
 // ChangeKind is the kind of a file change.
 type ChangeKind string

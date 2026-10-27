@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"maps"
 	"regexp"
@@ -14,10 +13,14 @@ import (
 	"time"
 
 	"github.com/nostosx/kitx/syncmap"
+
+	"github.com/nostosx/agentx/loop"
 )
 
-// ErrCheckpointNotFound is returned when a checkpoint does not exist.
-var ErrCheckpointNotFound = errors.New("workflow: checkpoint not found")
+// ErrCheckpointNotFound is returned when a workflow checkpoint does not
+// exist. It wraps loop.ErrCheckpointNotFound, so errors.Is matches either:
+// check this error for workflow runs only, or loop's for any checkpoint.
+var ErrCheckpointNotFound = fmt.Errorf("workflow: %w", loop.ErrCheckpointNotFound)
 
 // CheckpointVersion is the version of the Checkpoint format written by
 // this package.

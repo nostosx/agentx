@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"github.com/nostosx/agentx/loop"
 	"github.com/nostosx/agentx/workflow"
 )
 
@@ -286,5 +288,15 @@ func TestRunIDValidationAndJSONValues(t *testing.T) {
 	}
 	if _, err := w.Resume(t.Context(), "failed", nil); !errors.Is(err, workflow.ErrCheckpointNotFound) {
 		t.Fatalf("Resume failed run without checkpointer = %v", err)
+	}
+}
+
+// A missing workflow checkpoint matches loop.ErrCheckpointNotFound, but a
+// missing agent run checkpoint does not match the workflow error.
+func TestCheckpointNotFoundWrapsLoop(t *testing.T) {
+	missing := fmt.Errorf("resume: %w", workflow.ErrCheckpointNotFound)
+	runMissing := fmt.Errorf("resume: %w", loop.ErrCheckpointNotFound)
+	if !errors.Is(missing, loop.ErrCheckpointNotFound) || errors.Is(runMissing, workflow.ErrCheckpointNotFound) {
+		t.Error("workflow.ErrCheckpointNotFound must wrap loop.ErrCheckpointNotFound, not the other way round")
 	}
 }
