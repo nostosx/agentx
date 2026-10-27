@@ -22,6 +22,7 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/nostosx/kitx/boundedio"
 	"github.com/nostosx/kitx/utf8text"
 
 	"github.com/nostosx/agentx/internal/httpclient"
@@ -649,12 +650,12 @@ func (t *oauthTransport) getJSON(ctx context.Context, u string, out any) error {
 		return err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return err
-	}
+	body, err := readOAuthBody(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%s: http %d", u, resp.StatusCode)
+	}
+	if err != nil {
+		return fmt.Errorf("%s: %w", u, err)
 	}
 	if err := json.Unmarshal(body, out); err != nil {
 		return fmt.Errorf("%s: %w", u, err)
@@ -756,18 +757,40 @@ func (t *oauthTransport) register(ctx context.Context, md *AuthorizationServerMe
 		return nil, authError("register client: %w", err)
 	}
 	defer resp.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	raw, err := readOAuthBody(resp.Body)
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		return nil, oauthFailure(resp.StatusCode, raw, "register client")
 	}
+	if err != nil {
+		return nil, authError("register client: %w", err)
+	}
 	var reg ClientRegistration
 	if err := json.Unmarshal(raw, &reg); err != nil || reg.ClientID == "" {
-		return nil, authError("register client: invalid response %s", raw)
+		return nil, authError("register client: invalid response %s", utf8text.Truncate(string(bytes.TrimSpace(raw)), 300, "..."))
 	}
 	if len(reg.RedirectURIs) == 0 {
 		reg.RedirectURIs = []string{cfg.RedirectURL}
 	}
 	return &reg, nil
+}
+
+// maxOAuthResponse bounds the metadata, registration and token responses
+// read from authorization servers.
+const maxOAuthResponse = 1 << 20
+
+// readOAuthBody reads an authorization server response. A body larger than
+// maxOAuthResponse is an error rather than truncated, which would otherwise
+// surface as malformed JSON. Callers check the status first: the body of an
+// error response is only used to describe it.
+func readOAuthBody(r io.Reader) ([]byte, error) {
+	body, err := boundedio.ReadAll(r, maxOAuthResponse)
+	if errors.Is(err, boundedio.ErrLimitExceeded) {
+		return nil, fmt.Errorf("response larger than %d bytes: %w", maxOAuthResponse, err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	return body, nil
 }
 
 // oauthFailure converts an error response of the authorization server.
@@ -962,9 +985,12 @@ func (t *oauthTransport) tokenRequest(ctx context.Context, md *AuthorizationServ
 		return nil, authError("token request: %w", err)
 	}
 	defer resp.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	raw, err := readOAuthBody(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return nil, oauthFailure(resp.StatusCode, raw, "token request")
+	}
+	if err != nil {
+		return nil, authError("token request: %w", err)
 	}
 	if mt, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); mt != "" && mt != "application/json" {
 		return nil, authError("token response of type %s", mt)

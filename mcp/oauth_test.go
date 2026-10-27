@@ -22,6 +22,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/nostosx/kitx/boundedio"
 )
 
 // fakeAS is an OAuth 2.1 authorization server for the tests.
@@ -1056,6 +1058,67 @@ func TestTokenEndpointFailures(t *testing.T) {
 	md := &AuthorizationServerMetadata{Issuer: ts.URL, TokenEndpoint: ts.URL + "/json"}
 	if _, err := tr.tokenRequest(t.Context(), md, reg, url.Values{}, "", nil); !errors.As(err, &oe) || oe.StatusCode != http.StatusBadRequest || oe.Code != "invalid_grant" {
 		t.Errorf("OAuthError = %+v", oe)
+	}
+}
+
+// Authorization server responses larger than the limit fail explicitly
+// instead of being truncated into malformed JSON.
+func TestOAuthResponseLimit(t *testing.T) {
+	t.Parallel()
+	// sized returns a token response of exactly n bytes.
+	sized := func(n int) []byte {
+		const head, tail = `{"access_token":"x","token_type":"Bearer","pad":"`, `"}`
+		return []byte(head + strings.Repeat("x", n-len(head)-len(tail)) + tail)
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/exact":
+			_, _ = w.Write(sized(maxOAuthResponse))
+		case "/over":
+			_, _ = w.Write(sized(maxOAuthResponse + 1))
+		case "/no-client":
+			_, _ = w.Write([]byte(`{"pad":"` + strings.Repeat("x", maxOAuthResponse/2) + `"}`))
+		case "/over-error":
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write(sized(maxOAuthResponse + 1))
+		}
+	}))
+	defer ts.Close()
+	tr := (&OAuthConfig{RedirectURL: "http://127.0.0.1:9/callback"}).Transport(nil).(*oauthTransport)
+	reg := &ClientRegistration{ClientID: "c"}
+	token := func(path string) error {
+		md := &AuthorizationServerMetadata{Issuer: ts.URL, TokenEndpoint: ts.URL + path}
+		_, err := tr.tokenRequest(t.Context(), md, reg, url.Values{"grant_type": {"refresh_token"}}, "", nil)
+		return err
+	}
+	if err := token("/exact"); err != nil {
+		t.Errorf("token response at the limit: %v", err)
+	}
+	const tooLarge = "response larger than 1048576 bytes"
+	for name, err := range map[string]error{
+		"metadata": tr.getJSON(t.Context(), ts.URL+"/over", new(AuthorizationServerMetadata)),
+		"token":    token("/over"),
+		"register": func() error {
+			_, err := tr.register(t.Context(), &AuthorizationServerMetadata{Issuer: ts.URL, RegistrationEndpoint: ts.URL + "/over"}, nil)
+			return err
+		}(),
+	} {
+		if !errors.Is(err, boundedio.ErrLimitExceeded) || !strings.Contains(err.Error(), tooLarge) {
+			t.Errorf("%s: %v, want %q", name, err, tooLarge)
+		}
+		if name != "metadata" && !errors.Is(err, ErrAuthorization) {
+			t.Errorf("%s: %v, want ErrAuthorization", name, err)
+		}
+	}
+	// An invalid registration quotes only the start of the response.
+	_, err := tr.register(t.Context(), &AuthorizationServerMetadata{Issuer: ts.URL, RegistrationEndpoint: ts.URL + "/no-client"}, nil)
+	if !errors.Is(err, ErrAuthorization) || !strings.Contains(err.Error(), "invalid response") || len(err.Error()) > 500 {
+		t.Errorf("invalid registration: %d bytes: %.200s", len(err.Error()), err)
+	}
+	// The status of an error response wins over the size of its body.
+	if err := token("/over-error"); !errors.Is(err, ErrAuthorization) || !strings.Contains(err.Error(), "http 400") {
+		t.Errorf("oversized error response: %v", err)
 	}
 }
 
