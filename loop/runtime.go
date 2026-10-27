@@ -22,15 +22,22 @@ const DefaultMaxTurns = 50
 
 // Config configures a Runtime.
 type Config struct {
+	Settings
+	Tools *tool.Registry
+	// Middlewares extend the loop in order. If any is a ToolProvider, its
+	// tools are added to a copy of Tools.
+	Middlewares []Middleware
+}
+
+// Settings are the run settings shared by Config and agent.Config: the
+// model and its request options, approval and checkpointing, and the
+// limits and stop conditions of runs.
+type Settings struct {
 	// Name identifies the agent in events and hooks.
 	Name  string
 	Model model.Model
 	// Instructions is the base system prompt; middleware may extend it.
 	Instructions string
-	Tools        *tool.Registry
-	// Middlewares extend the loop in order. If any is a ToolProvider, its
-	// tools are added to a copy of Tools.
-	Middlewares []Middleware
 	// ToolMiddlewares wrap every tool call inside the ToolWrapper
 	// middleware; the first is outermost.
 	ToolMiddlewares []tool.Middleware

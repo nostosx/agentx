@@ -256,32 +256,9 @@ func build(cfg Config) (*LLMAgent, error) {
 		mws = append(mws, guardLast)
 	}
 
-	rt, err := loop.New(loop.Config{
-		Name:            name,
-		Model:           cfg.Model,
-		Instructions:    cfg.Instructions,
-		Tools:           reg,
-		Middlewares:     mws,
-		ToolMiddlewares: cfg.ToolMiddlewares,
-		Checkpointer:    cfg.Checkpointer,
-		Approver:        cfg.Approver,
-		MaxTurns:        cfg.MaxTurns,
-		MaxTokens:       cfg.MaxTokens,
-		Temperature:     cfg.Temperature,
-		TopP:            cfg.TopP,
-		Reasoning:       cfg.Reasoning,
-		ToolChoice:      cfg.ToolChoice,
-		ResponseFormat:  cfg.ResponseFormat,
-		Extra:           cfg.Extra,
-		Stream:          cfg.Stream,
-		Parallelism:     cfg.Parallelism,
-		Logger:          cfg.Logger,
-		Output:          cfg.Output,
-		Limits:          cfg.Limits,
-		Budget:          cfg.Budget,
-		StopAtTools:     stopAt,
-		StopWhen:        cfg.StopWhen,
-	})
+	settings := cfg.Settings
+	settings.StopAtTools = stopAt
+	rt, err := loop.New(loop.Config{Settings: settings, Tools: reg, Middlewares: mws})
 	if err != nil {
 		return nil, err
 	}

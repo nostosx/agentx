@@ -2,28 +2,26 @@ package agent
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/nostosx/agentx/actx"
 	"github.com/nostosx/agentx/guard"
 	"github.com/nostosx/agentx/hook"
 	"github.com/nostosx/agentx/loop"
 	"github.com/nostosx/agentx/memory"
-	"github.com/nostosx/agentx/model"
 	"github.com/nostosx/agentx/skill"
 	"github.com/nostosx/agentx/tool"
 	"github.com/nostosx/agentx/tool/builtin"
 )
 
 // Config configures an LLMAgent. Build it with options passed to New.
+//
+// The embedded loop.Settings configure the agent's runtime: its name,
+// model, request options, approver, checkpointer, limits and stop
+// conditions. The agent adds its handoff tools to StopAtTools.
 type Config struct {
-	Name         string
-	Description  string
-	Model        model.Model
-	Instructions string
-	Tools        []tool.Tool
-	// ToolMiddlewares wrap every tool call; the first is outermost.
-	ToolMiddlewares []tool.Middleware
+	loop.Settings
+	Description string
+	Tools       []tool.Tool
 
 	// Skills are advertised in the system prompt and loaded with the skill
 	// tool.
@@ -66,28 +64,6 @@ type Config struct {
 	Context          actx.Config
 	ContextProviders []actx.Provider
 
-	Checkpointer loop.Checkpointer
-	Approver     loop.Approver
-
-	MaxTurns       int
-	MaxTokens      int
-	Temperature    *float64
-	TopP           *float64
-	Reasoning      *model.Reasoning
-	ToolChoice     *model.ToolChoice
-	ResponseFormat *model.ResponseFormat
-	Extra          map[string]any
-	Stream         bool
-	Parallelism    int
-	Logger         *slog.Logger
-
-	// Output, Limits, Budget, StopAtTools and StopWhen configure the
-	// runtime fields of the same names.
-	Output      *loop.Output
-	Limits      loop.Limits
-	Budget      func(model.Usage) error
-	StopAtTools []string
-	StopWhen    []loop.StopCondition
 	// SubAgentEvents forwards the events of sub-agents; see
 	// ToolOptions.Events.
 	SubAgentEvents bool
