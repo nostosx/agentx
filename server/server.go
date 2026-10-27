@@ -189,6 +189,11 @@ func New(runner *agent.Runner, opts ...Option) *Server {
 }
 
 // Handler returns New(runner, opts...) as an http.Handler.
+//
+// Deprecated: Use New. The *Server it returns is also an http.Handler and
+// has Close, which cancels the background A2A tasks and waits for them to
+// save their sessions; an http.Handler from Handler cannot be closed, so
+// those tasks keep running until the process exits.
 func Handler(runner *agent.Runner, opts ...Option) http.Handler { return New(runner, opts...) }
 
 // Close cancels the A2A tasks running in the background and waits for
