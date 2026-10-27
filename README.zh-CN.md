@@ -1529,7 +1529,9 @@ m, err := openai.New(openai.DeepSeek()) // 读取 DEEPSEEK_API_KEY
 
 环境变量、OpenAI 兼容服务的预设、云平台选项以及各 Provider 接受的媒体见
 agentx-contrib 的 README。某个 Provider 特有的请求字段可以通过
-`agent.WithExtra` 传入。其他模型只要实现 `model.Model` 就能使用；
+`agent.WithProviderOptions("openai", map[string]any{...})` 传入：每个适配器只读取自己
+名下的选项，因此同一个请求可以携带多个 Provider 的选项。推理强度和推理内容展示使用带类型的
+`model.Effort` 与 `model.ReasoningDisplay` 常量。其他模型只要实现 `model.Model` 就能使用；
 `model/modeltest` 提供用于测试的脚本化模型。
 
 ## 包结构

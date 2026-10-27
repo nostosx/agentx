@@ -13,15 +13,15 @@ import (
 func TestScriptAndRequestIsolation(t *testing.T) {
 	t.Parallel()
 	m := modeltest.New(modeltest.Reply("first"))
-	req := &model.Request{Messages: []*model.Message{model.UserText("original")}, Extra: map[string]any{"seed": 1}}
+	req := &model.Request{Messages: []*model.Message{model.UserText("original")}, ProviderOptions: map[string]map[string]any{"openai": {"seed": 1}}}
 	resp, err := m.Generate(t.Context(), req)
 	if err != nil || resp.Text() != "first" {
 		t.Fatalf("reply = %+v, %v", resp, err)
 	}
 	req.Messages[0].Parts[0].Text = "changed"
-	req.Extra["seed"] = 2
+	req.ProviderOptions["openai"]["seed"] = 2
 	recorded := m.Requests()
-	if len(recorded) != 1 || recorded[0].Messages[0].Text() != "original" || recorded[0].Extra["seed"] != 1 {
+	if len(recorded) != 1 || recorded[0].Messages[0].Text() != "original" || recorded[0].ProviderOptions["openai"]["seed"] != 1 {
 		t.Fatalf("recorded request changed: %+v", recorded)
 	}
 	recorded[0] = nil

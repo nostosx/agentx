@@ -317,16 +317,17 @@ func (l *execution) turn(ctx context.Context) {
 func (l *execution) request() *model.Request {
 	cfg := &l.r.cfg
 	req := &model.Request{
-		System:         l.st.System,
-		Messages:       slices.Clone(l.st.Messages),
-		Tools:          cfg.Tools.Specs(),
-		ToolChoice:     clonePtr(cfg.ToolChoice),
-		MaxTokens:      cfg.MaxTokens,
-		Temperature:    clonePtr(cfg.Temperature),
-		TopP:           clonePtr(cfg.TopP),
-		Reasoning:      clonePtr(cfg.Reasoning),
-		ResponseFormat: clonePtr(cfg.ResponseFormat),
-		Extra:          maps.Clone(cfg.Extra),
+		System:          l.st.System,
+		Messages:        slices.Clone(l.st.Messages),
+		Tools:           cfg.Tools.Specs(),
+		ToolChoice:      clonePtr(cfg.ToolChoice),
+		MaxTokens:       cfg.MaxTokens,
+		Temperature:     clonePtr(cfg.Temperature),
+		Seed:            clonePtr(cfg.Seed),
+		TopP:            clonePtr(cfg.TopP),
+		Reasoning:       clonePtr(cfg.Reasoning),
+		ResponseFormat:  clonePtr(cfg.ResponseFormat),
+		ProviderOptions: model.CloneProviderOptions(cfg.ProviderOptions),
 	}
 	if req.ResponseFormat != nil {
 		req.ResponseFormat.Schema = slices.Clone(req.ResponseFormat.Schema)

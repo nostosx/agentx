@@ -319,8 +319,8 @@ func TestLLMJudge(t *testing.T) {
 	if !strings.Contains(req.System, "impartial grader") || !strings.Contains(req.System, `Set "score" from 0 to 1`) {
 		t.Errorf("system = %q", req.System)
 	}
-	if req.Temperature == nil || *req.Temperature != 0 || req.Extra["seed"] != 7 || req.Reasoning.Effort != "low" {
-		t.Errorf("sampling = %v, %v, %v", req.Temperature, req.Extra, req.Reasoning)
+	if req.Temperature == nil || *req.Temperature != 0 || req.Seed == nil || *req.Seed != 7 || req.Reasoning.Effort != "low" {
+		t.Errorf("sampling = %v, %v, %v", req.Temperature, req.Seed, req.Reasoning)
 	}
 	f := req.ResponseFormat
 	if f == nil || f.Name != "verdict" || !strings.Contains(string(f.Schema), `"score"`) || !strings.Contains(string(f.Schema), `"maximum":1`) {
@@ -341,7 +341,7 @@ func TestLLMJudgeDefaultsAndFailures(t *testing.T) {
 	if strings.Contains(prompt, "secret input") || strings.Contains(prompt, "expected_output") || !strings.Contains(prompt, `{"a":1}`) {
 		t.Errorf("prompt = %s", prompt)
 	}
-	if req.System != "Custom grader." || *req.Temperature != 0.3 || req.Extra["seed"] != nil || strings.Contains(string(req.ResponseFormat.Schema), "score") {
+	if req.System != "Custom grader." || *req.Temperature != 0.3 || req.Seed != nil || strings.Contains(string(req.ResponseFormat.Schema), "score") {
 		t.Errorf("request = %+v", req)
 	}
 

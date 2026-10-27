@@ -39,7 +39,7 @@ func TestRuntimeRun(t *testing.T) {
 		t.Run(map[bool]string{false: "generate", true: "stream"}[stream], func(t *testing.T) {
 			t.Parallel()
 			m := modeltest.New(modeltest.Reply("你好，world"))
-			r := newRuntime(t, loop.Config{Name: "assistant", Model: m, Instructions: "Be helpful", Stream: stream, MaxTokens: 123, Extra: map[string]any{"custom": true}})
+			r := newRuntime(t, loop.Config{Name: "assistant", Model: m, Instructions: "Be helpful", Stream: stream, MaxTokens: 123, ProviderOptions: map[string]map[string]any{"openai": {"custom": true}}})
 			history := []*model.Message{model.UserText("old"), model.AssistantText("prior")}
 			input := model.NewMessage("", model.TextPart("new"))
 			var events []loop.EventType
@@ -72,7 +72,7 @@ func TestRuntimeRun(t *testing.T) {
 				t.Fatalf("events = %v", events)
 			}
 			req := m.Requests()[0]
-			if req.System != "Be helpful" || req.MaxTokens != 123 || req.Extra["custom"] != true || len(req.Messages) != 3 {
+			if req.System != "Be helpful" || req.MaxTokens != 123 || req.ProviderOptions["openai"]["custom"] != true || len(req.Messages) != 3 {
 				t.Fatalf("model request = %+v", req)
 			}
 		})

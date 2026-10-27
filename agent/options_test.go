@@ -72,7 +72,7 @@ func TestOptionsReachModelAndToolExecution(t *testing.T) {
 			return loop.Approve, nil
 		})),
 		agent.WithCheckpointer(cp), agent.WithMaxTurns(3), agent.WithMaxTokens(42), agent.WithTemperature(0.25), agent.WithTopP(0.8), agent.WithReasoning(reasoning), agent.WithToolChoice(choice), agent.WithResponseFormat(format),
-		agent.WithExtra("provider_option", true), agent.WithExtra("other_option", "value"), agent.WithStreaming(), agent.WithParallelism(2), agent.WithLogger(logger),
+		agent.WithProviderOptions("openai", map[string]any{"provider_option": true}), agent.WithProviderOptions("openai", map[string]any{"other_option": "value"}), agent.WithSeed(3), agent.WithStreaming(), agent.WithParallelism(2), agent.WithLogger(logger),
 	)
 	var deltas int
 	res, err := loop.Collect(a.Run(t.Context(), agent.Text("question")), func(ev *loop.Event) {
@@ -84,7 +84,7 @@ func TestOptionsReachModelAndToolExecution(t *testing.T) {
 		t.Fatalf("Run = %+v, %v; deltas = %d", res, err, deltas)
 	}
 	req := m.Requests()[0]
-	if req.MaxTokens != 42 || req.Temperature == nil || *req.Temperature != 0.25 || req.TopP == nil || *req.TopP != 0.8 || !reflect.DeepEqual(req.Reasoning, reasoning) || !reflect.DeepEqual(req.ToolChoice, choice) || !reflect.DeepEqual(req.ResponseFormat, format) || req.Extra["provider_option"] != true || req.Extra["other_option"] != "value" {
+	if req.MaxTokens != 42 || req.Temperature == nil || *req.Temperature != 0.25 || req.TopP == nil || *req.TopP != 0.8 || !reflect.DeepEqual(req.Reasoning, reasoning) || !reflect.DeepEqual(req.ToolChoice, choice) || !reflect.DeepEqual(req.ResponseFormat, format) || req.ProviderOptions["openai"]["provider_option"] != true || req.ProviderOptions["openai"]["other_option"] != "value" || req.Seed == nil || *req.Seed != 3 {
 		t.Fatalf("model options lost: %+v", req)
 	}
 	for _, text := range []string{"base instructions", "configured context", "testing"} {

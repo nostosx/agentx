@@ -515,7 +515,7 @@ func (mw *middleware) BeforeModel(_ context.Context, run *loop.Run, req *model.R
 		if req.Reasoning != nil {
 			r = *req.Reasoning
 		}
-		r.Effort = act.Effort
+		r.Effort = model.Effort(act.Effort)
 		req.Reasoning = &r
 	}
 	if len(act.Disallowed) > 0 {

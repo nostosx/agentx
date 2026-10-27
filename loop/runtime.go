@@ -53,8 +53,11 @@ type Settings struct {
 	Reasoning      *model.Reasoning
 	ToolChoice     *model.ToolChoice
 	ResponseFormat *model.ResponseFormat
-	// Extra is passed to the provider in model.Request.Extra.
-	Extra map[string]any
+	// Seed is passed to the provider in model.Request.Seed.
+	Seed *int
+	// ProviderOptions is passed to the provider in
+	// model.Request.ProviderOptions.
+	ProviderOptions map[string]map[string]any
 	// Stream calls Model.Stream and emits delta events.
 	Stream bool
 	// Parallelism bounds tool calls running concurrently, which are those of

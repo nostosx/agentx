@@ -61,10 +61,10 @@ func TestRequestDoesNotShareConfig(t *testing.T) {
 	t.Parallel()
 	echo := tool.Func("echo", "echo", func(_ context.Context, in echoArgs) (string, error) { return in.Text, nil }, tool.ReadOnly())
 	mutate := &loop.Funcs{MiddlewareName: "mutate", BeforeModelFunc: func(_ context.Context, _ *loop.Run, req *model.Request) error {
-		if req.Extra["k"] != "v" || *req.Temperature != 0.5 || req.Reasoning.Effort != "low" || req.ToolChoice.Mode != model.ToolChoiceAuto || string(req.ResponseFormat.Schema) != "{}" {
+		if req.ProviderOptions["openai"]["k"] != "v" || *req.Temperature != 0.5 || req.Reasoning.Effort != "low" || req.ToolChoice.Mode != model.ToolChoiceAuto || string(req.ResponseFormat.Schema) != "{}" {
 			return errors.New("request does not hold the configured options")
 		}
-		req.Extra["k"] = "changed"
+		req.ProviderOptions["openai"]["k"] = "changed"
 		*req.Temperature = 1
 		req.Reasoning.Effort = "high"
 		req.ToolChoice.Mode = model.ToolChoiceNone
@@ -78,13 +78,13 @@ func TestRequestDoesNotShareConfig(t *testing.T) {
 			}
 			return modeltest.Reply("done")(req)
 		}),
-		Tools:          toolRegistry(t, echo),
-		Middlewares:    []loop.Middleware{mutate},
-		Extra:          map[string]any{"k": "v"},
-		Temperature:    new(0.5),
-		Reasoning:      &model.Reasoning{Effort: "low"},
-		ToolChoice:     &model.ToolChoice{Mode: model.ToolChoiceAuto},
-		ResponseFormat: &model.ResponseFormat{Name: "out", Schema: json.RawMessage("{}")},
+		Tools:           toolRegistry(t, echo),
+		Middlewares:     []loop.Middleware{mutate},
+		ProviderOptions: map[string]map[string]any{"openai": {"k": "v"}},
+		Temperature:     new(0.5),
+		Reasoning:       &model.Reasoning{Effort: "low"},
+		ToolChoice:      &model.ToolChoice{Mode: model.ToolChoiceAuto},
+		ResponseFormat:  &model.ResponseFormat{Name: "out", Schema: json.RawMessage("{}")},
 	}
 	r := newRuntime(t, cfg)
 	// Concurrent runs, each with two model calls, must not see each
@@ -98,7 +98,7 @@ func TestRequestDoesNotShareConfig(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	if cfg.Extra["k"] != "v" || *cfg.Temperature != 0.5 || cfg.Reasoning.Effort != "low" || cfg.ToolChoice.Mode != model.ToolChoiceAuto || string(cfg.ResponseFormat.Schema) != "{}" {
+	if cfg.ProviderOptions["openai"]["k"] != "v" || *cfg.Temperature != 0.5 || cfg.Reasoning.Effort != "low" || cfg.ToolChoice.Mode != model.ToolChoiceAuto || string(cfg.ResponseFormat.Schema) != "{}" {
 		t.Fatalf("configuration changed: %+v", cfg)
 	}
 }

@@ -56,9 +56,9 @@ func JudgeScore() JudgeOption { return func(c *judgeConfig) { c.score = true } }
 // for consistent grading. Providers drop it for models that reject it.
 func JudgeTemperature(t float64) JudgeOption { return func(c *judgeConfig) { c.temperature = t } }
 
-// JudgeSeed sends seed in the request's "seed" field, for providers that
-// support reproducible sampling, such as OpenAI. Providers that reject
-// unknown fields fail with it.
+// JudgeSeed asks the judge model for reproducible sampling with
+// model.Request.Seed, for providers that support it, such as OpenAI and
+// Gemini; others ignore it.
 func JudgeSeed(seed int) JudgeOption { return func(c *judgeConfig) { c.seed = &seed } }
 
 // JudgeReasoning enables model reasoning for the judge, which improves
@@ -121,7 +121,7 @@ func LLMJudge(m model.Model, rubric string, opts ...JudgeOption) Evaluator {
 		},
 	}
 	if cfg.seed != nil {
-		aopts = append(aopts, agent.WithExtra("seed", *cfg.seed))
+		aopts = append(aopts, agent.WithSeed(*cfg.seed))
 	}
 	if cfg.reasoning != nil {
 		aopts = append(aopts, agent.WithReasoning(cfg.reasoning))

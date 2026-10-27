@@ -1742,7 +1742,11 @@ m, err := openai.New(openai.DeepSeek()) // reads DEEPSEEK_API_KEY
 The agentx-contrib README lists the environment variables, the presets of
 OpenAI-compatible services, cloud platform options and the media each
 provider accepts. For request fields specific to one provider, use
-`agent.WithExtra`. Any other model works once it implements `model.Model`;
+`agent.WithProviderOptions("openai", map[string]any{...})`: each adapter
+reads only the options under its own name, so a request can carry options
+for several providers. Reasoning effort and display use the typed
+`model.Effort` and `model.ReasoningDisplay` constants. Any other model works
+once it implements `model.Model`;
 `model/modeltest` provides a scripted model for tests.
 
 ## Packages

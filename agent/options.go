@@ -2,6 +2,7 @@ package agent
 
 import (
 	"log/slog"
+	"maps"
 
 	"github.com/nostosx/agentx/actx"
 	"github.com/nostosx/agentx/hook"
@@ -144,15 +145,27 @@ func WithResponseFormat(f *model.ResponseFormat) Option {
 	return func(c *Config) { c.ResponseFormat = f }
 }
 
-// WithExtra passes provider-specific request fields.
-func WithExtra(key string, value any) Option {
+// WithProviderOptions passes provider-specific request fields to the
+// provider adapter named provider, such as "openai" or "anthropic"; see
+// model.Request.ProviderOptions. Options for the same provider merge, later
+// keys replacing earlier ones.
+func WithProviderOptions(provider string, opts map[string]any) Option {
 	return func(c *Config) {
-		if c.Extra == nil {
-			c.Extra = map[string]any{}
+		if c.ProviderOptions == nil {
+			c.ProviderOptions = map[string]map[string]any{}
 		}
-		c.Extra[key] = value
+		m := c.ProviderOptions[provider]
+		if m == nil {
+			m = make(map[string]any, len(opts))
+		}
+		maps.Copy(m, opts)
+		c.ProviderOptions[provider] = m
 	}
 }
+
+// WithSeed asks providers that support it for deterministic sampling; see
+// model.Request.Seed.
+func WithSeed(seed int) Option { return func(c *Config) { c.Seed = &seed } }
 
 // WithStreaming streams model output as delta events.
 func WithStreaming() Option { return func(c *Config) { c.Stream = true } }

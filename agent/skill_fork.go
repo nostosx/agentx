@@ -44,7 +44,7 @@ func newSkillManager(cfg *Config) (*skill.Manager, *hook.Manager, error) {
 	}
 	sc := cfg.SkillConfig
 	if sc.Effort == "" && cfg.Reasoning != nil {
-		sc.Effort = cfg.Reasoning.Effort
+		sc.Effort = string(cfg.Reasoning.Effort)
 	}
 	if sc.HookOptions.Model == nil {
 		sc.HookOptions.Model = cfg.Model

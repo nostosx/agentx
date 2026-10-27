@@ -34,19 +34,27 @@ type Request struct {
 
 	MaxTokens   int      `json:"max_tokens,omitempty"`
 	Temperature *float64 `json:"temperature,omitempty"`
-	TopP        *float64 `json:"top_p,omitempty"`
-	Stop        []string `json:"stop,omitempty"`
+	// Seed asks providers that support it, such as OpenAI and Gemini, for
+	// deterministic sampling.
+	Seed *int     `json:"seed,omitempty"`
+	TopP *float64 `json:"top_p,omitempty"`
+	Stop []string `json:"stop,omitempty"`
 
 	Reasoning      *Reasoning      `json:"reasoning,omitempty"`
 	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
 
-	// Extra is merged into the provider request body, overriding generated
-	// fields with the same name. Use it for provider-specific parameters.
-	Extra map[string]any `json:"extra,omitempty"`
+	// ProviderOptions holds provider-specific request fields, keyed by the
+	// provider adapter: "openai", "anthropic", "gemini" or "bedrock", the
+	// name in Part.Provider. An adapter merges only its own map into the
+	// request body, overriding generated fields with the same name, so one
+	// request can carry options for several providers, as a fallback
+	// between providers needs.
+	ProviderOptions map[string]map[string]any `json:"provider_options,omitempty"`
 }
 
-// Clone copies the request's Messages, Tools and Stop slices and Extra map.
-// Messages, tool specs, option pointers and values in Extra remain shared.
+// Clone copies the request's Messages, Tools and Stop slices and the maps
+// of ProviderOptions. Messages, tool specs, option pointers and the values
+// in ProviderOptions remain shared.
 func (r *Request) Clone() *Request {
 	if r == nil {
 		return nil
@@ -55,8 +63,21 @@ func (r *Request) Clone() *Request {
 	c.Messages = slices.Clone(r.Messages)
 	c.Tools = slices.Clone(r.Tools)
 	c.Stop = slices.Clone(r.Stop)
-	c.Extra = maps.Clone(r.Extra)
+	c.ProviderOptions = CloneProviderOptions(r.ProviderOptions)
 	return &c
+}
+
+// CloneProviderOptions copies opts and each provider's map; the option
+// values remain shared.
+func CloneProviderOptions(opts map[string]map[string]any) map[string]map[string]any {
+	if opts == nil {
+		return nil
+	}
+	c := make(map[string]map[string]any, len(opts))
+	for provider, m := range opts {
+		c[provider] = maps.Clone(m)
+	}
+	return c
 }
 
 // ToolSpec describes a tool the model may call.
@@ -107,13 +128,39 @@ type ToolChoice struct {
 	Name string         `json:"name,omitempty"`
 }
 
+// Effort is a reasoning effort level. Providers map the levels to what a
+// model supports, using the nearest supported level.
+type Effort string
+
+// Reasoning effort levels, from none to max.
+const (
+	EffortNone    Effort = "none"
+	EffortMinimal Effort = "minimal"
+	EffortLow     Effort = "low"
+	EffortMedium  Effort = "medium"
+	EffortHigh    Effort = "high"
+	EffortXHigh   Effort = "xhigh"
+	EffortMax     Effort = "max"
+)
+
+// ReasoningDisplay controls whether reasoning text is returned.
+type ReasoningDisplay string
+
+// Reasoning display modes.
+const (
+	// DisplaySummarized returns summarized reasoning text.
+	DisplaySummarized ReasoningDisplay = "summarized"
+	// DisplayOmitted returns no reasoning text.
+	DisplayOmitted ReasoningDisplay = "omitted"
+)
+
 // Reasoning configures model reasoning ("thinking").
 type Reasoning struct {
-	// Effort is a provider-defined level such as "low", "medium" or "high".
-	Effort string `json:"effort,omitempty"`
-	// Display controls whether reasoning text is returned, for providers that
-	// support it ("summarized" or "omitted").
-	Display string `json:"display,omitempty"`
+	// Effort is the reasoning effort; empty leaves it to the provider.
+	Effort Effort `json:"effort,omitempty"`
+	// Display controls whether reasoning text is returned, for providers
+	// that support it; empty leaves it to the provider.
+	Display ReasoningDisplay `json:"display,omitempty"`
 	// BudgetTokens limits reasoning tokens for providers that use budgets.
 	BudgetTokens int `json:"budget_tokens,omitempty"`
 }

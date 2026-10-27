@@ -48,9 +48,9 @@ type BeforeTurner interface {
 }
 
 // BeforeModeler runs before each model call and may modify the request.
-// The request's options are copies, but Extra is a shallow copy, whose
-// values are shared with the configuration, and the messages are shared
-// with the run: replace a value in Extra or a message in Request.Messages
+// The request's options are copies, but the values in ProviderOptions are
+// shared with the configuration, and the messages are shared with the run:
+// replace a value in ProviderOptions or a message in Request.Messages
 // instead of modifying it.
 type BeforeModeler interface {
 	BeforeModel(ctx context.Context, run *Run, req *model.Request) error

@@ -275,7 +275,7 @@ func requestAttrs(d model.Description, req *model.Request, stream bool) (string,
 		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.stop_sequences", Value: req.Stop})
 	}
 	if r := req.Reasoning; r != nil && r.Effort != "" {
-		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.reasoning.level", Value: r.Effort})
+		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.request.reasoning.level", Value: string(r.Effort)})
 	}
 	if req.ResponseFormat != nil {
 		attrs = append(attrs, telemetry.Attr{Key: "gen_ai.output.type", Value: "json"})
