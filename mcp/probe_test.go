@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"sync"
@@ -14,6 +15,9 @@ import (
 // as well.
 func TestSlowStdioServers(t *testing.T) {
 	const slow = 150 * time.Millisecond
+	// probeID is the ID of the probe the server answers after rejecting
+	// initialize.
+	var probeID json.RawMessage
 	for name, tc := range map[string]struct {
 		// serve answers the probe, initialize and tools/list.
 		serve  func(m wireMessage, write func(string), discovers int)
@@ -26,6 +30,18 @@ func TestSlowStdioServers(t *testing.T) {
 				write(result(m.ID, discoverResult))
 			case "initialize":
 				write(rpcError(m.ID, CodeMethodNotFound, "Method not found"))
+			}
+		}},
+		// The initialize error arrives first: it does not identify the
+		// server, so the client waits for the late probe answer.
+		"modern server rejects initialize before answering the probe": {modern: true, serve: func(m wireMessage, write func(string), _ int) {
+			switch m.Method {
+			case "server/discover":
+				probeID = m.ID
+			case "initialize":
+				write(rpcError(m.ID, CodeMethodNotFound, "Method not found"))
+				time.Sleep(slow)
+				write(result(probeID, discoverResult))
 			}
 		}},
 		"modern server rejects initialize naming its versions": {modern: true, serve: func(m wireMessage, write func(string), discovers int) {

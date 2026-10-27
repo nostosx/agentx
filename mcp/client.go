@@ -490,7 +490,11 @@ func (c *Client) probe(ctx context.Context) error {
 // initialize request ic sent after it, and completes the negotiation with
 // the first answer that identifies the server.
 func (c *Client) race(ctx context.Context, d, ic *call, st sessionTransport) error {
-	dch := d.ch
+	dch, ich := d.ch, ic.ch
+	// failed holds an initialize error that arrived while the probe was
+	// still pending: an error does not identify the server, so a modern
+	// server that started slowly may still answer the probe.
+	var failed *reply
 	for {
 		select {
 		case resp, ok := <-dch:
@@ -499,6 +503,9 @@ func (c *Client) race(ctx context.Context, d, ic *call, st sessionTransport) err
 			legacy, err := c.discovered(raw, err, true)
 			if legacy != "" {
 				// Initialize decides.
+				if failed != nil {
+					return c.initialize(ctx, failed)
+				}
 				continue
 			}
 			// A modern server, or a failure.
@@ -506,18 +513,24 @@ func (c *Client) race(ctx context.Context, d, ic *call, st sessionTransport) err
 			c.abortInitialize(st)
 			c.legacy.Store(false)
 			return err
-		case resp, ok := <-ic.ch:
-			c.forget(d.key)
+		case resp, ok := <-ich:
+			ich = nil
 			raw, err := c.outcome(resp, ok)
 			var e *Error
 			if errors.As(err, &e) && slices.Contains(supportedVersions(e), ProtocolVersion) {
 				// A modern server that started slowly and rejected
 				// initialize, naming the revisions it supports.
+				c.forget(d.key)
 				c.abortInitialize(st)
 				c.legacy.Store(false)
 				_, err := c.discover(ctx, false)
 				return err
 			}
+			if err != nil && dch != nil {
+				failed = &reply{raw: raw, err: err}
+				continue
+			}
+			c.forget(d.key)
 			return c.initialize(ctx, &reply{raw: raw, err: err})
 		case <-ctx.Done():
 			c.forget(d.key)

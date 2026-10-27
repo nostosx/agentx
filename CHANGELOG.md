@@ -16,6 +16,11 @@ Release date: 2026-10-27.
   guardrails. Previously the fork received the parent's tools without them,
   so a forked skill could run calls the parent's rules deny or ask about.
   Agents passed to `WithSkillAgents` keep their own configuration.
+- Fix MCP version negotiation with a slowly starting server of the current
+  revision: when the server rejected the fallback `initialize` before
+  answering the probe, or both answers arrived together, the client could
+  fail with the `initialize` error instead of using the probe's answer. An
+  `initialize` error now waits for a pending probe.
 - Deprecate `server.Handler` in favor of `server.New`. The `http.Handler` it
   returns cannot be closed, so background A2A tasks kept running until the
   process exited; `(*server.Server).Close` cancels them and waits for their
