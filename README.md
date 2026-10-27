@@ -1595,6 +1595,10 @@ defer srv.Close()
 http.ListenAndServe(":8080", srv)
 ```
 
+`srv.Shutdown(ctx)` cancels background A2A tasks and waits for them to save
+their sessions until `ctx` ends; `Close` waits without a deadline. Shut the
+HTTP server down first.
+
 | Endpoint | Purpose |
 | --- | --- |
 | `POST /sessions/{id}/runs` | Run `{"input": "..."}` or `{"message": {...}}` |

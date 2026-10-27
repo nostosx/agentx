@@ -159,10 +159,13 @@ type Server struct {
 	interrupts map[string]*loop.Interrupt
 
 	a2a *a2aTasks
-	// base is cancelled by Close; background A2A tasks run under it.
+	// base is cancelled by Shutdown; background A2A tasks run under it.
 	base   context.Context
 	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	// closing is set, under mu, once Shutdown started; wg tracks the
+	// background tasks started before.
+	closing bool
+	wg      sync.WaitGroup
 }
 
 // New returns a server for runner.
@@ -188,20 +191,46 @@ func New(runner *agent.Runner, opts ...Option) *Server {
 	return s
 }
 
-// Handler returns New(runner, opts...) as an http.Handler.
-//
-// Deprecated: Use New. The *Server it returns is also an http.Handler and
-// has Close, which cancels the background A2A tasks and waits for them to
-// save their sessions; an http.Handler from Handler cannot be closed, so
-// those tasks keep running until the process exits.
-func Handler(runner *agent.Runner, opts ...Option) http.Handler { return New(runner, opts...) }
-
-// Close cancels the A2A tasks running in the background and waits for
-// them to save their sessions.
-func (s *Server) Close() error {
+// Shutdown cancels the A2A tasks running in the background and waits for
+// them to save their sessions until ctx ends, when it returns the cause of
+// ctx. Tasks requested after Shutdown started see a canceled context and
+// run in their request. Shutdown can be called again, for example with a
+// longer deadline. It does not stop the HTTP server serving s; shut that
+// down first.
+func (s *Server) Shutdown(ctx context.Context) error {
+	s.mu.Lock()
+	s.closing = true
+	s.mu.Unlock()
 	s.cancel()
-	s.wg.Wait()
-	return nil
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	}
+}
+
+// Close is Shutdown without a deadline.
+func (s *Server) Close() error { return s.Shutdown(context.Background()) }
+
+// background runs fn in a goroutine that Shutdown waits for. Once Shutdown
+// started, it runs fn in the calling goroutine instead, where fn sees the
+// canceled base context; starting a goroutine then could race with the
+// wait.
+func (s *Server) background(fn func()) {
+	s.mu.Lock()
+	if s.closing {
+		s.mu.Unlock()
+		fn()
+		return
+	}
+	s.wg.Go(fn)
+	s.mu.Unlock()
 }
 
 func (s *Server) routes() {

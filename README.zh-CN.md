@@ -1395,6 +1395,9 @@ defer srv.Close()
 http.ListenAndServe(":8080", srv)
 ```
 
+`srv.Shutdown(ctx)` 取消后台 A2A 任务，并在 `ctx` 结束前等待它们保存会话；`Close`
+不设期限地等待。应先关闭 HTTP 服务器。
+
 | 端点 | 用途 |
 | --- | --- |
 | `POST /sessions/{id}/runs` | 运行 `{"input": "..."}` 或 `{"message": {...}}` |

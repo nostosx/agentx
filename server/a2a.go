@@ -600,7 +600,7 @@ func (s *Server) a2aSend(w http.ResponseWriter, r *http.Request, req *rpcRequest
 	if req.Method == "SendStreamingMessage" {
 		sub, first = t.subscribe()
 	}
-	s.wg.Go(func() { s.a2aRun(t, seq) })
+	s.background(func() { s.a2aRun(t, seq) })
 	if sub != nil {
 		s.a2aStream(w, r, req.ID, t, sub, first)
 		return
