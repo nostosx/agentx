@@ -245,6 +245,20 @@ const (
 	Denied
 )
 
+// String returns "", "allow", "ask" or "deny", the values of
+// hook.Decision and of Claude Code's permissionDecision.
+func (d Decision) String() string {
+	switch d {
+	case Allowed:
+		return "allow"
+	case Asked:
+		return "ask"
+	case Denied:
+		return "deny"
+	}
+	return ""
+}
+
 // ToolPlan is a tool call as seen by BeforeTool and AfterTool.
 type ToolPlan struct {
 	// Call is the tool call. BeforeTool may rewrite its arguments.

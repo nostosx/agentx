@@ -130,3 +130,11 @@ func TestStopErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestDecisionString(t *testing.T) {
+	for d, want := range map[loop.Decision]string{loop.NoDecision: "", loop.Allowed: "allow", loop.Asked: "ask", loop.Denied: "deny"} {
+		if got := d.String(); got != want {
+			t.Errorf("%d.String() = %q, want %q", d, got, want)
+		}
+	}
+}
