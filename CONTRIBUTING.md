@@ -5,11 +5,22 @@ features and public API changes in an issue before implementing them.
 
 Report security issues privately; see [SECURITY.md](SECURITY.md).
 
+Install [Task](https://taskfile.dev/docs/installation/) v3.53.1 outside the module,
+matching CI, and put its binary on `PATH`:
+
+```sh
+go install github.com/go-task/task/v3/cmd/task@v3.53.1
+```
+
+Run `task --list` to discover tasks. Tool overrides accept environment variables or
+Task arguments, for example `task check GO="/path with spaces/go"`.
+Checks force `GOWORK=off`; `check`, `lint` and `vulncheck` do not apply source fixes.
+
 ## Where code belongs
 
 - **agentx** (this repository) holds the contracts and one in-memory
   reference implementation of each, and depends only on the Go standard
-  library and kitx, tests included. `make deps-check` enforces it.
+  library and kitx, tests included. The dependency checks inside `task check` enforce it.
 - **[agentx-contrib](https://github.com/nostosx/agentx-contrib)** holds the
   other implementations: model providers, file and SQL stores,
   OpenTelemetry, logging and retry middleware, and anything that needs a
@@ -39,7 +50,7 @@ Use standard-library UUID generation directly; do not recreate a utils package.
 
 ## Development
 
-Use Go 1.27.3, GNU Make and Bash. The module resolves kitx v1.0.0 from
+Use Go 1.27.3, Task v3.53.1 and Bash. The module resolves kitx v1.0.0 from
 the Go module proxy; no sibling kitx checkout is needed. For linting, install
 [golangci-lint](https://golangci-lint.run) v2.15.0 built with Go 1.27.3;
 for vulnerability scans, install govulncheck v1.9.0 outside this module:
@@ -48,23 +59,30 @@ for vulnerability scans, install govulncheck v1.9.0 outside this module:
 go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
 ```
 
-`make help` lists all targets. `GO`, `GOFMT`, `GOLANGCI_LINT` and `GOVULNCHECK`
+`task --list` lists all targets. `GO`, `GOFMT`, `GOLANGCI_LINT` and `GOVULNCHECK`
 can select installed executables.
 
 ```sh
-make check      # format, modernizer and tidy checks, vet, build, dependency boundary, race tests
-make lint       # golangci-lint
-make vulncheck  # reachable vulnerability scan
-make test       # unit tests without the race detector
-make race       # race tests with shuffled execution order
+task check      # format, modernizer and tidy checks, vet, build, dependency boundary, race tests
+task lint       # golangci-lint
+task vulncheck  # reachable vulnerability scan
+task test       # unit tests without the race detector
+task test RACE=true   # race tests with shuffled execution order
+task test COVER=true  # race tests, coverage.out and function coverage
 ```
 
-`make check` rejects changes suggested by gofmt, `go fix` or `go mod tidy`;
-it does not apply them. Use `make fmt`, `make fix` or `make tidy` to apply
+`task check` rejects changes suggested by gofmt, `go fix` or `go mod tidy`;
+it does not apply them. Use `task fmt`, `task fix` or `task tidy` to apply
 the corresponding changes, then review the diff. All targets set `GOWORK=off`
 so a personal workspace does not change dependency resolution.
 
-CI runs `make check` on Linux, macOS and Windows, with independent lint and
+The public commands are `check`, `test`, `build`, `lint`, `vulncheck`, `fmt`,
+`fix` and `tidy`. Running `task` selects `check`. `RACE` and `COVER` accept
+`true` or `false`; coverage implies the race detector. Fine-grained quality
+steps are internal, so `task --list` and `task --list-all` show the same eight
+commands.
+
+CI runs `task check` on Linux, macOS and Windows, with independent lint and
 vulnerability jobs. Before requesting review, run all three local gates.
 Passing local checks does not prove the remote CI run or a module release.
 

@@ -14,7 +14,7 @@ agentx 是一个 Go Agent 框架，用于调用工具、维护对话和恢复被
 - **迭代器流式**：运行过程是 `iter.Seq2[*loop.Event, error]`，模型流是
   `iter.Seq2[*model.StreamEvent, error]`，用普通的 `for range` 就能读取。
 
-> 需要 Go 1.27.3 或更高版本，当前版本为 v1.2.0。
+> 需要 Go 1.27.3 或更高版本，当前版本为 v1.2.1。
 > 补丁版本保持公开 API 兼容；次版本可能包含破坏性改动，每项改动及其迁移方式见
 > [CHANGELOG.md](CHANGELOG.md)。
 
@@ -33,7 +33,7 @@ go mod init example.com/agentx-demo
 ```
 
 ```sh
-go get github.com/nostosx/agentx@v1.2.0 github.com/nostosx/agentx-contrib/provider@v1.1.0
+go get github.com/nostosx/agentx@v1.2.1 github.com/nostosx/agentx-contrib/provider@v1.1.0
 ```
 
 核心模块定义 `model.Model`；OpenAI、Anthropic、Gemini 和 Bedrock 的实现位于
@@ -1583,22 +1583,27 @@ go run ./cmd/basic "什么是 Agent Loop？"
 
 ## 开发
 
-使用 Go 1.27.3、GNU Make 和 Bash；`make help` 列出所有入口。
+使用 Go 1.27.3、Task v3.53.1 和 Bash；`task --list` 列出所有入口。
 
 ```sh
-make check      # 格式、现代化、tidy 检查、vet、构建、依赖边界、随机顺序 race 测试
-make lint       # golangci-lint
-make vulncheck  # 可达漏洞扫描
-make test       # 普通单元测试
-make race       # 随机顺序 race 测试
+task check      # 格式、现代化、tidy 检查、vet、构建、依赖边界、随机顺序 race 测试
+task lint       # golangci-lint
+task vulncheck  # 可达漏洞扫描
+task test       # 普通单元测试
+task test RACE=true   # 随机顺序 race 测试
+task test COVER=true  # race 测试、coverage.out 和函数覆盖率
 ```
 
-检查入口不会应用格式、现代化或 tidy 修改；需要修改时显式运行 `make fmt`、
-`make fix` 或 `make tidy`，然后审阅差异。所有入口设置 `GOWORK=off`。
-`make deps-check` 是 `check` 的一部分，包括测试在内只允许标准库、agentx 和 kitx。
+检查入口不会应用格式、现代化或 tidy 修改；需要修改时显式运行 `task fmt`、
+`task fix` 或 `task tidy`，然后审阅差异。所有入口设置 `GOWORK=off`。
+`check` 内部执行依赖边界检查，包括测试在内只允许标准库、agentx 和 kitx。
 需要其他依赖的实现应放在 agentx-contrib。
 
-CI 在 Linux、macOS 和 Windows 上运行 `make check`，lint 和漏洞扫描独立运行。
+公开入口只有 `check`、`test`、`build`、`lint`、`vulncheck`、`fmt`、`fix`、`tidy`，
+裸 `task` 等同于 `task check`。`RACE`、`COVER` 接受 `true` / `false`，覆盖率隐含 race；
+细项检查由内部任务完成，`task --list` 与 `task --list-all` 都只列出这八项。
+
+CI 在 Linux、macOS 和 Windows 上运行 `task check`，lint 和漏洞扫描独立运行。
 工具安装和贡献要求见 [CONTRIBUTING.md](CONTRIBUTING.md)；漏洞报告与沙箱及权限的
 已知限制见 [SECURITY.md](SECURITY.md)；版本顺序和发布门禁见
 [RELEASING.md](RELEASING.md)。

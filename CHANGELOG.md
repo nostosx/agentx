@@ -7,6 +7,22 @@ workflow uses each version section as its release notes.
 
 Go 1.27.3 is the toolchain requirement, independent of the library version.
 
+## Unreleased
+
+## v1.2.1
+
+Release date: 2026-10-28.
+
+- Skip queued hooks when cancellation coincides with an available execution
+  slot, preserving cancellation before dispatching later hooks.
+
+- Run the macOS sandbox local-binding probe through the Go test executable,
+  removing its optional Python dependency.
+
+- Development tooling: replace Make entry points with Task v3.53.1 in local
+  checks, CI and contribution/release instructions. Use `task check`, `task lint`
+  and `task vulncheck`; check coverage, build tags and failure gates are preserved.
+
 ## v1.2.0
 
 Release date: 2026-10-27.

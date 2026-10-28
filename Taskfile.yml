@@ -1,0 +1,138 @@
+# Each repository owns this file; no sibling checkout or shared include is required.
+version: '3'
+
+vars:
+  GO: '{{.GO | default "go"}}'
+  GOFMT: '{{.GOFMT | default "gofmt"}}'
+  GOLANGCI_LINT: '{{.GOLANGCI_LINT | default "golangci-lint"}}'
+  GOVULNCHECK: '{{.GOVULNCHECK | default "govulncheck"}}'
+
+tasks:
+  fmt:
+    desc: Apply Go formatting
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          {{.GOFMT | shellQuote}} -w .
+
+  fmt-check:
+    internal: true
+    desc: Reject unformatted Go files
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          out=$({{.GOFMT | shellQuote}} -l .); if [ -n "$out" ]; then printf 'gofmt needed:\n%s\n' "$out"; exit 1; fi
+
+  fix:
+    desc: Apply Go modernizers in normal and integration builds
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          for tags in '' integration; do {{.GO | shellQuote}} fix -tags "$tags" ./...; done
+
+  modernize-check:
+    internal: true
+    desc: Reject Go modernizer changes in both builds
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          for tags in '' integration; do out=$({{.GO | shellQuote}} fix -tags "$tags" -diff ./...); if [ -n "$out" ]; then printf '%s\n' "$out"; exit 1; fi; done
+
+  tidy:
+    desc: Apply module dependency changes
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          {{.GO | shellQuote}} mod tidy
+
+  tidy-check:
+    internal: true
+    desc: Reject module dependency changes
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          out=$({{.GO | shellQuote}} mod tidy -diff); if [ -n "$out" ]; then printf '%s\n' "$out"; exit 1; fi
+
+  vet:
+    internal: true
+    desc: Vet normal and integration builds
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          for tags in '' integration; do {{.GO | shellQuote}} vet -tags "$tags" ./...; done
+
+  build:
+    desc: Build normal and integration configurations
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          for tags in '' integration; do {{.GO | shellQuote}} build -tags "$tags" ./...; done
+
+  test:
+    desc: Run shuffled tests (RACE=true or COVER=true)
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          race={{printf "%v" (.RACE | default false) | shellQuote}}
+          cover={{printf "%v" (.COVER | default false) | shellQuote}}
+          case "$race:$cover" in true:true|true:false|false:true|false:false) ;; *) echo 'RACE and COVER must be true or false'; exit 1 ;; esac
+          set -- -shuffle=on -count=1
+          if [ "$race" = true ] || [ "$cover" = true ]; then set -- "$@" -race; fi
+          if [ "$cover" = true ]; then set -- "$@" -coverprofile=coverage.out -covermode=atomic; fi
+          {{.GO | shellQuote}} test "$@" ./...
+          if [ "$cover" = true ]; then {{.GO | shellQuote}} tool cover -func=coverage.out; fi
+
+  lint:
+    desc: Lint both builds with golangci-lint v2.15.0
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          for tags in '' integration; do {{.GOLANGCI_LINT | shellQuote}} run --config={{printf "%s/.golangci.yml" .ROOT_DIR | shellQuote}} --build-tags="$tags" ./...; done
+
+  vulncheck:
+    desc: Scan both builds with govulncheck v1.9.0
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          for tags in '' integration; do {{.GOVULNCHECK | shellQuote}} -tags "$tags" ./...; done
+
+  check:
+    aliases: [default]
+    desc: Check formatting, modernization, dependencies, builds and shuffled race tests
+    cmds:
+      - task: fmt-check
+      - task: modernize-check
+      - task: tidy-check
+      - task: vet
+      - task: build
+      - task: deps-check
+      - task: test
+        vars:
+          RACE: 'true'
+
+  deps-check:
+    internal: true
+    desc: Check dependency boundaries
+    cmds:
+      - |
+          set -eu
+          export GOWORK=off GO={{.GO | shellQuote}}
+          set -eu; deps=$({{.GO | shellQuote}} list -m -f '{{"{{.Path}}"}}' all);
+            foreign=$(printf '%s\n' "$deps" | awk 'NF && $0 != "github.com/nostosx/agentx" && $0 != "github.com/nostosx/kitx"');
+            if [ -n "$foreign" ]; then printf 'unexpected module dependencies:\n%s\n' "$foreign"; exit 1; fi
+          set -eu; for tags in '' integration; do
+            deps=$({{.GO | shellQuote}} list -tags "$tags" -test -deps -f '{{"{{if not .Standard}}"}}{{"{{.ImportPath}}"}}{{"{{end}}"}}' ./...);
+            foreign=$(printf '%s\n' "$deps" | awk 'NF && $0 !~ /^github[.]com\/nostosx\/agentx(\/| |$)/ && $0 !~ /^github[.]com\/nostosx\/kitx\//');
+            if [ -n "$foreign" ]; then printf 'unexpected imports:\n%s\n' "$foreign"; exit 1; fi;
+          done

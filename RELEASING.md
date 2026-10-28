@@ -18,7 +18,7 @@ cannot be reused; do not create release tags before the checks finish.
 2. Keep the published kitx v1.0.0 dependency, or deliberately select another
    published release. Verify it from a clean consumer module without
    sibling checkouts or replacement directives.
-   Run `make check`, `make lint` and `make vulncheck`. The first command
+   Run `task check`, `task lint` and `task vulncheck`. The first command
    checks formatting, modernizers, module tidiness, vet, build, the
    standard-library and kitx dependency boundary and shuffled race tests.
 3. Review the files intended for publication, including the MIT license,
@@ -27,7 +27,7 @@ cannot be reused; do not create release tags before the checks finish.
 
 The release workflow rejects an invalid or existing tag, a mismatched
 `agentx.Version`, missing changelog notes, local replacements and unreleased
-kitx versions. It runs `make check` on Linux, macOS and Windows, plus lint and
+kitx versions. It runs `task check` on Linux, macOS and Windows, plus lint and
 vulnerability scans. Only after all required
 jobs pass does a publishing job create the tag and GitHub release at the
 checked commit and ask the public Go module proxy for the version.

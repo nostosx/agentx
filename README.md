@@ -18,7 +18,7 @@ permissions, checkpoints and context management through composable packages.
   and model streams `iter.Seq2[*model.StreamEvent, error]`, so you read them
   with a plain `for range` loop.
 
-> Requires Go 1.27.3 or later. The current release is v1.2.0.
+> Requires Go 1.27.3 or later. The current release is v1.2.1.
 > Patch releases preserve the public API; minor releases may contain
 > breaking changes, each listed with its migration in
 > [CHANGELOG.md](CHANGELOG.md).
@@ -39,7 +39,7 @@ go mod init example.com/agentx-demo
 ```
 
 ```sh
-go get github.com/nostosx/agentx@v1.2.0 github.com/nostosx/agentx-contrib/provider@v1.1.0
+go get github.com/nostosx/agentx@v1.2.1 github.com/nostosx/agentx-contrib/provider@v1.1.0
 ```
 
 The core module defines `model.Model`; the OpenAI, Anthropic, Gemini and
@@ -1801,23 +1801,29 @@ go run ./cmd/basic "What is an agent loop?"
 
 ## Development
 
-Use Go 1.27.3, GNU Make and Bash. `make help` lists all targets.
+Use Go 1.27.3, Task v3.53.1 and Bash. `task --list` lists all targets.
 
 ```sh
-make check      # format, modernizer and tidy checks, vet, build, dependency boundary, race tests
-make lint       # golangci-lint
-make vulncheck  # reachable vulnerability scan
-make test       # unit tests without the race detector
-make race       # race tests with shuffled execution order
+task check      # format, modernizer and tidy checks, vet, build, dependency boundary, race tests
+task lint       # golangci-lint
+task vulncheck  # reachable vulnerability scan
+task test       # unit tests without the race detector
+task test RACE=true   # race tests with shuffled execution order
+task test COVER=true  # race tests, coverage.out and function coverage
 ```
 
-Checks do not apply formatting, modernizer or tidy changes. Run `make fmt`,
-`make fix` or `make tidy` explicitly to apply them, then review the diff.
+Checks do not apply formatting, modernizer or tidy changes. Run `task fmt`,
+`task fix` or `task tidy` explicitly to apply them, then review the diff.
 All targets set `GOWORK=off`. The `deps-check` gate included in `check`
 allows only the standard library, agentx and kitx, including in tests.
 Implementations that need other dependencies belong in agentx-contrib.
 
-CI runs `make check` on Linux, macOS and Windows, with independent lint and
+The public commands are `check`, `test`, `build`, `lint`, `vulncheck`, `fmt`,
+`fix` and `tidy`; running `task` selects `check`. `RACE` and `COVER` accept
+`true` or `false`, and coverage implies race. Internal quality steps are hidden
+from both `task --list` and `task --list-all`.
+
+CI runs `task check` on Linux, macOS and Windows, with independent lint and
 vulnerability jobs. See [CONTRIBUTING.md](CONTRIBUTING.md) for tool setup and
 contribution requirements, [SECURITY.md](SECURITY.md) for vulnerability reports
 and the known sandbox and permission limitations, and
