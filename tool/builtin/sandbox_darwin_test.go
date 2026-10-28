@@ -159,16 +159,11 @@ func TestSeatbeltNetwork(t *testing.T) {
 
 func TestSeatbeltLocalBinding(t *testing.T) {
 	t.Parallel()
-	py, err := exec.LookPath("python3")
+	binary, err := os.Executable()
 	if err != nil {
-		t.Skip("python3 is not on PATH")
+		t.Fatal(err)
 	}
-	// Probe that python3 runs at all; the Xcode shim needs more than the
-	// sandbox allows when the developer tools are missing.
-	if err := exec.Command(py, "-c", "pass").Run(); err != nil {
-		t.Skipf("python3 does not run: %v", err)
-	}
-	script := shellQuote(py) + ` -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); s.listen(1); print("bound")' || echo bind-failed`
+	script := "AGENTX_TEST_BIND_HELPER=1 " + shellQuote(binary) + " -test.run='^TestSeatbeltLocalBindingHelper$' || echo bind-failed"
 	dir := t.TempDir()
 	res := call(t, Bash(Config{Dir: dir, Sandbox: seatbelt(t, SandboxPolicy{})}), map[string]any{"command": script})
 	if !strings.Contains(res.Content, "bind-failed") {
@@ -178,6 +173,20 @@ func TestSeatbeltLocalBinding(t *testing.T) {
 	if !strings.Contains(res.Content, "bound") || strings.Contains(res.Content, "bind-failed") {
 		t.Errorf("binding with AllowLocalBinding: %s", res.Content)
 	}
+}
+
+func TestSeatbeltLocalBindingHelper(t *testing.T) {
+	if os.Getenv("AGENTX_TEST_BIND_HELPER") != "1" {
+		return
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := listener.Close(); err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println("bound")
 }
 
 func TestSeatbeltEscapeHatch(t *testing.T) {
