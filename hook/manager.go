@@ -336,11 +336,20 @@ func (m *Manager) parallel(ctx context.Context, ev *Event, hooks []Hook, limit i
 	}
 	model = make(chan struct{}, maxModelHooks)
 	acquire := func(sem chan struct{}) bool {
+		if ctx.Err() != nil {
+			return false
+		}
 		if sem == nil {
 			return true
 		}
 		select {
 		case sem <- struct{}{}:
+			// Cancellation and an available slot may both be ready. Do not
+			// let select's random choice start another waiting hook.
+			if ctx.Err() != nil {
+				<-sem
+				return false
+			}
 			return true
 		case <-ctx.Done():
 			return false
