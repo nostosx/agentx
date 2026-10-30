@@ -27,9 +27,16 @@ Checks force `GOWORK=off`; `check`, `lint` and `vulncheck` do not apply source f
   third-party module or targets one service. Each directory there is its own
   module.
 
+New storage capabilities follow the contract-only boundary used by servex:
+`artifact` defines the domain contract and conformance suite; file, S3 and
+other backends belong in agentx-contrib. Existing Agent execution and neutral
+composition remain in core. Core must not import servex or any contrib module.
+Reuse established contracts such as `memory.Embedder` and `model.Model` rather
+than adding parallel interfaces for cached/fallback implementations.
+
 A new implementation of a store contract must pass the conformance suite of
 its contract: `session/sessiontest`, `loop/checkpointtest`,
-`workflow/checkpointtest`, `memory/memorytest` or `rag/ragtest`.
+`workflow/checkpointtest`, `memory/memorytest`, `rag/ragtest` or `artifact/artifacttest`.
 
 Internal helpers have specific owners: `internal/process` handles tool and hook
 command lifetimes, `internal/media` adapts model parts, `internal/httpclient`

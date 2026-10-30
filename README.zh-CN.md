@@ -14,7 +14,7 @@ agentx 是一个 Go Agent 框架，用于调用工具、维护对话和恢复被
 - **迭代器流式**：运行过程是 `iter.Seq2[*loop.Event, error]`，模型流是
   `iter.Seq2[*model.StreamEvent, error]`，用普通的 `for range` 就能读取。
 
-> 需要 Go 1.27.3 或更高版本，当前版本为 v1.2.1。
+> 需要 Go 1.27.3 或更高版本，当前版本为 v1.3.0。
 > 补丁版本保持公开 API 兼容；次版本可能包含破坏性改动，每项改动及其迁移方式见
 > [CHANGELOG.md](CHANGELOG.md)。
 
@@ -33,7 +33,7 @@ go mod init example.com/agentx-demo
 ```
 
 ```sh
-go get github.com/nostosx/agentx@v1.2.1 github.com/nostosx/agentx-contrib/provider@v1.1.0
+go get github.com/nostosx/agentx@v1.3.0 github.com/nostosx/agentx-contrib/provider@v1.2.0
 ```
 
 核心模块定义 `model.Model`；OpenAI、Anthropic、Gemini 和 Bedrock 的实现位于
@@ -329,6 +329,37 @@ shot := tool.Func("screenshot", "截取屏幕。",
   Bedrock 文档开启引用；Anthropic 文本把引用保存在 `Part.Raw` 中并原样发回。
 - **上下文。** Token 估算会计入媒体；`ClearToolResults` 清理结果时连同媒体
   一起清除。
+
+### 图片生成
+
+生成资产使用独立的 `artifact.Store` 契约，包含作用域、二进制数据和
+Put/Get/Delete 操作。文件与 S3 实现在 agentx-contrib，S3 复用 servex-contrib
+对象存储；核心不引入存储后端或 servex 依赖。设置 imagegen.ToolOptions 的
+`Artifacts`、`ArtifactScope` 即可保存图片并返回元数据中的引用。
+保存失败时 `imagegen.ArtifactError` 保留已生成图片和已保存引用，应用可补存而无需重新生图。
+
+`imagegen` 将图片能力与对话 `model.Model` 分开：`Generator.Generate`、
+`Editor.Edit`、`Streamer.Stream` 和 `EditStreamer.StreamEdit` 是独立的小接口。
+请求支持提示词、模型、数量、尺寸、质量、输出格式和背景；响应包含图片
+`model.Part`、请求 ID，以及图片和文本的 token 用量。流式预览与最终
+`Response` 明确区分。
+
+OpenAI 与 Gemini 实现分别为 agentx-contrib 的 `openai.NewImageGenerator`、
+`gemini.NewImageGenerator`。Gemini 使用宽高比和分辨率配置，并显式拒绝
+OpenAI 专有质量/掩码等不支持参数，详见 provider 文档。
+用 `imagegen.Tool(images, imagegen.ToolOptions{})` 包装后，传给
+`agent.WithTools` 即可供 Agent 调用。工具默认每次最多生成一张，使用
+`MaxImages` 显式提高上限；编辑时由应用提供 `ResolveImage`，完成图片引用的
+授权与解析。模型、安全标识及厂商参数由应用配置。
+
+图片通过工具结果的 `Parts` 返回，用量和请求 ID 放在 `Metadata`。
+`Ask` 返回文本，展示或保存图片应读取运行事件或对话中的工具结果。
+存储、发布由应用负责；已有 Session/Checkpoint 序列化可以保留图片字节。
+图片生成费用独立于对话模型的 token 用量限制。
+
+参见 [OpenAI 完整示例](https://github.com/nostosx/agentx-contrib/blob/main/provider/IMAGES.md)。
+图片契约从 core v1.3.0 提供，供应商图片适配需要 provider v1.3.0 或更高版本；
+上方 provider v1.2.0 的快速开始只演示对话 API。
 
 ### 用量限制
 

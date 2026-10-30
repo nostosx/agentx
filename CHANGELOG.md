@@ -9,6 +9,24 @@ Go 1.27.3 is the toolchain requirement, independent of the library version.
 
 ## Unreleased
 
+## v1.3.0
+
+Release date: 2026-10-31.
+
+- Add the provider-neutral `search.Searcher` contract, attributed search results
+  and an Agent tool with an application-configured result cap. External service
+  clients remain in agentx-contrib; core gains no SDK or servex dependency.
+
+- Add the contract-only `artifact` package with scoped binary values and a
+  conformance suite. `imagegen.Tool` can persist outputs through that contract,
+  return saved references and retain generated images after storage failures.
+- Add a provider-neutral image aspect-ratio setting for Gemini image adapters.
+
+- Add independent image generation, editing and streaming contracts in
+  `imagegen`, plus an Agent tool with bounded output count, application-owned
+  image resolution, image parts and usage metadata. OpenAI implementations
+  live in agentx-contrib/provider.
+
 ## v1.2.1
 
 Release date: 2026-10-28.

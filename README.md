@@ -18,7 +18,7 @@ permissions, checkpoints and context management through composable packages.
   and model streams `iter.Seq2[*model.StreamEvent, error]`, so you read them
   with a plain `for range` loop.
 
-> Requires Go 1.27.3 or later. The current release is v1.2.1.
+> Requires Go 1.27.3 or later. The current release is v1.3.0.
 > Patch releases preserve the public API; minor releases may contain
 > breaking changes, each listed with its migration in
 > [CHANGELOG.md](CHANGELOG.md).
@@ -39,7 +39,7 @@ go mod init example.com/agentx-demo
 ```
 
 ```sh
-go get github.com/nostosx/agentx@v1.2.1 github.com/nostosx/agentx-contrib/provider@v1.1.0
+go get github.com/nostosx/agentx@v1.3.0 github.com/nostosx/agentx-contrib/provider@v1.2.0
 ```
 
 The core module defines `model.Model`; the OpenAI, Anthropic, Gemini and
@@ -374,6 +374,43 @@ shot := tool.Func("screenshot", "Capture the screen.",
   `Part.Raw` and sends them back.
 - **Context.** Token estimates count media; `ClearToolResults` clears a
   result's media with its text.
+
+### Image generation
+
+Generated assets have a separate `artifact.Store` contract with scoped binary
+values and Put/Get/Delete operations. File and S3 implementations live in
+agentx-contrib, with S3 reusing servex-contrib object storage. No storage backend
+or servex dependency is introduced into core. Configure `Artifacts` and
+`ArtifactScope` on imagegen.ToolOptions to persist generated images and return
+their keys in tool metadata. `imagegen.ArtifactError` retains generated output
+and saved references on persistence failure, avoiding a new model request.
+
+`imagegen` separates image generation from the conversation `model.Model`:
+`Generator.Generate`, `Editor.Edit`, `Streamer.Stream` and
+`EditStreamer.StreamEdit` are independent capabilities. Requests control the
+prompt, model, count, dimensions, quality, output format and background.
+Responses contain image `model.Part` values, request IDs and image/text token
+details. Streaming previews are distinct from the final `Response`.
+
+The implementations are `openai.NewImageGenerator` and
+`gemini.NewImageGenerator` in agentx-contrib. Gemini uses ratio/resolution
+settings and rejects OpenAI-specific quality/mask options; see provider docs.
+Wrap it with `imagegen.Tool(images, imagegen.ToolOptions{})` and pass that tool
+to `agent.WithTools`. The default output limit is one image; `MaxImages`
+explicitly increases it. Editing uses an application-provided `ResolveImage`
+function to authorize and resolve image references. Model, safety identifier
+and provider options remain application-controlled.
+
+Generated images are returned in tool result `Parts`, with usage and request
+IDs in `Metadata`; `Ask` returns text, so consumers display/save images from
+run events or conversation tool results. Storage and publishing remain the
+application's responsibility. Existing session/checkpoint serialization can
+preserve the parts, including their image bytes. Image-generation charges are
+separate from the conversation model's token limits.
+
+See the [complete OpenAI examples](https://github.com/nostosx/agentx-contrib/blob/main/provider/IMAGES.md).
+Image contracts are available in core v1.3.0. Image adapters require provider
+v1.3.0 or later; the provider v1.2.0 quick start above covers conversation APIs.
 
 ### Usage limits
 
