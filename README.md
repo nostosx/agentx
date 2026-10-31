@@ -39,7 +39,7 @@ go mod init example.com/agentx-demo
 ```
 
 ```sh
-go get github.com/nostosx/agentx@v1.3.0 github.com/nostosx/agentx-contrib/provider@v1.2.0
+go get github.com/nostosx/agentx@v1.4.0 github.com/nostosx/agentx-contrib/provider@v1.3.0
 ```
 
 The core module defines `model.Model`; the OpenAI, Anthropic, Gemini and
@@ -410,7 +410,7 @@ separate from the conversation model's token limits.
 
 See the [complete OpenAI examples](https://github.com/nostosx/agentx-contrib/blob/main/provider/IMAGES.md).
 Image contracts are available in core v1.3.0. Image adapters require provider
-v1.3.0 or later; the provider v1.2.0 quick start above covers conversation APIs.
+v1.3.0 or later; the provider quick start above covers conversation APIs.
 
 ### Usage limits
 
@@ -1802,6 +1802,11 @@ once it implements `model.Model`;
 | `actx` | Context assembly, token estimates, compaction strategies; runs as middleware |
 | `session` | Sessions and their storage |
 | `memory` | Long-term memory with keyword, vector and hybrid retrieval |
+| `artifact` | Scoped binary artifact storage contract |
+| `imagegen` | Independent image generation, editing and streaming contracts and Agent tools |
+| `search` | Attributed external search contract and Agent tool |
+| `web` | Readable web and extraction contracts, bounded tool and full-snapshot RAG loader |
+| `browser` | Application-owned browser sessions, interaction, screenshot/download contracts and Agent tool |
 | `rag` | Retrieval-augmented generation: loaders, splitters, indexing, retrievers, search tool and context provider |
 | `rag/ragtest` | Conformance tests for `rag.VectorStore` implementations and a deterministic test embedder |
 | `skill` | `SKILL.md` loading, discovery, registry and invocation |

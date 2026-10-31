@@ -33,7 +33,7 @@ go mod init example.com/agentx-demo
 ```
 
 ```sh
-go get github.com/nostosx/agentx@v1.3.0 github.com/nostosx/agentx-contrib/provider@v1.2.0
+go get github.com/nostosx/agentx@v1.4.0 github.com/nostosx/agentx-contrib/provider@v1.3.0
 ```
 
 核心模块定义 `model.Model`；OpenAI、Anthropic、Gemini 和 Bedrock 的实现位于
@@ -1580,6 +1580,11 @@ agentx-contrib 的 README。某个 Provider 特有的请求字段可以通过
 | `actx` | 上下文拼装、Token 估算、压缩策略；以中间件形式运行 |
 | `session` | 会话及其存储 |
 | `memory` | 长期记忆，支持关键词、向量和混合检索 |
+| `artifact` | 作用域隔离的二进制产物存储契约 |
+| `imagegen` | 独立图片生成、编辑、流式输出契约与 Agent 工具 |
+| `search` | 带来源引用的外部搜索契约与 Agent 工具 |
+| `web` | 网页正文与提取契约、受限工具及完整 RAG 快照加载器 |
+| `browser` | 应用管理的浏览器会话、交互、截图、下载契约与 Agent 工具 |
 | `rag` | 检索增强生成：加载器、切分器、索引、检索器、搜索工具和上下文 Provider |
 | `rag/ragtest` | `rag.VectorStore` 实现的一致性测试，以及用于测试的确定性 Embedder |
 | `skill` | `SKILL.md` 加载、发现、注册表与调用 |
