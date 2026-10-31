@@ -22,6 +22,10 @@ const DefaultBatchSize = 64
 type Config struct {
 	// Store stores the chunks. Defaults to a new MemoryStore.
 	Store VectorStore
+	// Writer optionally selects a non-atomic ingestion backend. Store must be
+	// nil when Writer is supplied. Set Retriever to query that backend; without
+	// it the index supports ingestion only and retrieval returns an error.
+	Writer SourceWriter
 	// Embedder embeds chunks. Without it chunks are stored without
 	// embeddings and only keyword retrieval works.
 	Embedder memory.Embedder
@@ -65,6 +69,7 @@ type Config struct {
 type Index struct {
 	cfg       Config
 	store     VectorStore
+	writer    SourceWriter
 	splitter  Splitter
 	retriever Retriever
 	mu        sync.Mutex
@@ -73,8 +78,12 @@ type Index struct {
 // NewIndex returns an Index.
 func NewIndex(cfg Config) *Index {
 	ix := &Index{cfg: cfg, store: cfg.Store, splitter: cfg.Splitter}
-	if ix.store == nil {
+	if ix.store == nil && cfg.Writer == nil {
 		ix.store = NewMemoryStore()
+	}
+	ix.writer = cfg.Writer
+	if ix.writer == nil {
+		ix.writer = atomicSourceWriter{ix.store}
 	}
 	if ix.splitter == nil {
 		ix.splitter = &AutoSplitter{}
@@ -83,6 +92,11 @@ func NewIndex(cfg Config) *Index {
 		ix.cfg.BatchSize = DefaultBatchSize
 	}
 	r := cfg.Retriever
+	if r == nil && cfg.Writer != nil {
+		r = RetrieverFunc(func(context.Context, Query) ([]Hit, error) {
+			return nil, errors.New("rag: external writer requires a retriever")
+		})
+	}
 	if r == nil {
 		r = &Keyword{Store: ix.store}
 		if cfg.Embedder != nil {
@@ -96,11 +110,17 @@ func NewIndex(cfg Config) *Index {
 	if cfg.Reranker != nil {
 		r = &Reranked{Retriever: r, Reranker: cfg.Reranker, Candidates: cfg.Candidates, OnError: cfg.OnError}
 	}
+	if cfg.Writer != nil && cfg.Store != nil {
+		r = RetrieverFunc(func(context.Context, Query) ([]Hit, error) {
+			return nil, errors.New("rag: configure Store or Writer, not both")
+		})
+		ix.writer = invalidSourceWriter{}
+	}
 	ix.retriever = r
 	return ix
 }
 
-// Store returns the index's store.
+// Store returns the atomic store, or nil for an external Writer.
 func (ix *Index) Store() VectorStore { return ix.store }
 
 // Retrieve implements Retriever with the configured retriever.
@@ -123,8 +143,9 @@ type Result struct {
 }
 
 // Add indexes documents, replacing the chunks of their sources. Sources
-// whose content did not change are skipped. On error, the sources stored
-// before the error are kept and reported in the result.
+// whose content did not change are skipped. On error, completed sources are
+// reported in the result. A non-atomic Writer may have partially changed the
+// failing source; retry it before committing a loader's cursor.
 func (ix *Index) Add(ctx context.Context, docs ...*Document) (*Result, error) {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
@@ -160,7 +181,7 @@ func (ix *Index) Sync(ctx context.Context, docs []*Document, opts ...SyncOption)
 	for _, d := range docs {
 		keep[d.source()] = true
 	}
-	infos, err := ix.store.Sources(ctx)
+	infos, err := ix.writer.Sources(ctx)
 	if err != nil {
 		return res, err
 	}
@@ -171,7 +192,7 @@ func (ix *Index) Sync(ctx context.Context, docs []*Document, opts ...SyncOption)
 		}
 	}
 	if len(del) > 0 {
-		if err := ix.store.Delete(ctx, del...); err != nil {
+		if err := ix.writer.Delete(ctx, del...); err != nil {
 			return res, err
 		}
 		res.Deleted = del
@@ -183,7 +204,7 @@ func (ix *Index) Sync(ctx context.Context, docs []*Document, opts ...SyncOption)
 func (ix *Index) Delete(ctx context.Context, sources ...string) error {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
-	return ix.store.Delete(ctx, sources...)
+	return ix.writer.Delete(ctx, sources...)
 }
 
 // sourceDocs are the documents of one source.
@@ -199,7 +220,7 @@ func (ix *Index) add(ctx context.Context, docs []*Document) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	infos, err := ix.store.Sources(ctx)
+	infos, err := ix.writer.Sources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -231,10 +252,10 @@ func (ix *Index) add(ctx context.Context, docs []*Document) (*Result, error) {
 		if err := ix.embed(ctx, texts); err != nil {
 			return err
 		}
-		if err := ix.store.Replace(ctx, batch...); err != nil {
-			return err
-		}
 		for i, g := range batchDocs {
+			if err := ix.writer.Write(ctx, batch[i]); err != nil {
+				return err
+			}
 			if g.exists {
 				res.Updated = append(res.Updated, g.source)
 			} else {
