@@ -9,6 +9,14 @@ Go 1.27.3 is the toolchain requirement, independent of the library version.
 
 ## Unreleased
 
+## v1.4.0
+
+Release date: 2026-10-31.
+
+- Add provider-neutral web Reader/Extractor and browser Browser/Session contracts, bounded Agent tools and a complete-snapshot web Loader. Browser tool sessions are application-bound and interaction is not read-only/concurrent.
+- Add rag.SourceWriter for non-atomic, retryable external ingestion without weakening VectorStore atomic replacement. Config.Store and Writer are mutually exclusive; external retrieval is explicit.
+- Add ChangeLoader, Changes and Index.ApplyChanges with explicit deletions and application-committed cursors; preserve confirmed progress on partial source failures. Core still depends only on the standard library and kitx.
+
 ## v1.3.0
 
 Release date: 2026-10-31.

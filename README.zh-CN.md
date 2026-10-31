@@ -14,7 +14,7 @@ agentx 是一个 Go Agent 框架，用于调用工具、维护对话和恢复被
 - **迭代器流式**：运行过程是 `iter.Seq2[*loop.Event, error]`，模型流是
   `iter.Seq2[*model.StreamEvent, error]`，用普通的 `for range` 就能读取。
 
-> 需要 Go 1.27.3 或更高版本，当前版本为 v1.3.0。
+> 需要 Go 1.27.3 或更高版本，当前版本为 v1.4.0。
 > 补丁版本保持公开 API 兼容；次版本可能包含破坏性改动，每项改动及其迁移方式见
 > [CHANGELOG.md](CHANGELOG.md)。
 
@@ -1642,3 +1642,11 @@ CI 在 Linux、macOS 和 Windows 上运行 `task check`，lint 和漏洞扫描�
 ## 许可证
 
 [MIT](LICENSE)
+
+## 网页、浏览器与来源写入
+
+核心 `web.Reader/Extractor` 定义可归因的正文、Markdown 与链接，`browser.Browser/Session` 定义受应用管理的浏览器操作；`web.Tool` 和 `browser.Tool` 可直接注册 Agent。HTTP、Readability 和 Chromium 实现位于 agentx-contrib/web 与 browser，核心不引入 SDK 或 Servex 依赖。
+
+`rag.SourceWriter` 支持非原子的来源写入，适配 Qdrant/Elasticsearch；已有 `VectorStore` 保留按来源原子替换保证。`rag.Config{Writer: writer, Retriever: retriever}` 用于外部索引，Store 与 Writer 不可同时配置。写入失败可留下部分分块，空哈希标记未完成来源，后续 Add/Sync 会重试。多个实例的写入协调由应用负责。
+
+GitHub、Notion 和飞书连接器位于 agentx-contrib/loader，提供完整 `rag.Loader` 快照和 `rag.ChangeLoader` 增量。增量只能传给 `Index.ApplyChanges`；全部成功后再持久化游标，不可把部分列表传给 Sync。连接器复用 Servex HTTP、Cache 和 Codec。

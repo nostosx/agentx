@@ -95,7 +95,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           awk -v v="$VERSION" '/^## /{p = ($2 == v); next} p' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
-          gh release create "$VERSION" --target "$GITHUB_SHA" --title "$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+          gh release create "$VERSION" --target "$GITHUB_SHA" --title "发布 $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod

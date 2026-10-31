@@ -18,7 +18,7 @@ permissions, checkpoints and context management through composable packages.
   and model streams `iter.Seq2[*model.StreamEvent, error]`, so you read them
   with a plain `for range` loop.
 
-> Requires Go 1.27.3 or later. The current release is v1.3.0.
+> Requires Go 1.27.3 or later. The current release is v1.4.0.
 > Patch releases preserve the public API; minor releases may contain
 > breaking changes, each listed with its migration in
 > [CHANGELOG.md](CHANGELOG.md).
@@ -1869,3 +1869,11 @@ and the known sandbox and permission limitations, and
 ## License
 
 [MIT](LICENSE)
+
+## Web, browser and source ingestion
+
+Core `web.Reader/Extractor` defines attributed readable content, Markdown and links; `browser.Browser/Session` defines application-owned browser operations. Register `web.Tool` or `browser.Tool` with an Agent. HTTP, Readability and Chromium implementations live in agentx-contrib/web and browser; core gains no SDK or Servex dependency.
+
+`rag.SourceWriter` adds non-atomic source ingestion for Qdrant/Elasticsearch while the existing VectorStore retains atomic replacement per source. Configure `rag.Config{Writer: writer, Retriever: retriever}`; Store and Writer are mutually exclusive. A failed replacement may leave partial chunks; an empty source hash marks unfinished work for the next Add/Sync to retry. Applications coordinate independent writers.
+
+GitHub, Notion and Feishu connectors live in agentx-contrib/loader and expose complete `rag.Loader` snapshots plus `rag.ChangeLoader` deltas. Apply a delta with `Index.ApplyChanges` and persist its cursor only after full success. Never Sync an incremental/partial listing. Connectors reuse Servex HTTP, Cache and Codec facilities.
